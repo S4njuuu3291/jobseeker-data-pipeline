@@ -1,10 +1,11 @@
-import re
-from datetime import datetime, timezone, timedelta
 import logging
+import re
 import time
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
-from boto3 import client
+
 import requests
+from boto3 import client
 
 if TYPE_CHECKING:
     from mypy_boto3_athena import AthenaClient
@@ -140,9 +141,9 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
 
     # Platform emoji and color mapping
     platform_config = {
-        "glints": {"emoji": "🎯", "color": "#FF6B6B"},
-        "jobstreet": {"emoji": "💼", "color": "#4ECDC4"},
-        "kalibrr": {"emoji": "⭐", "color": "#FFE66D"},
+        "glints": {"emoji": "GLINTS 🎯", "color": "#FF6B6B"},
+        "jobstreet": {"emoji": "JOBSTREET 💼", "color": "#4ECDC4"},
+        "kalibrr": {"emoji": "KALIBRR ⭐", "color": "#FFE66D"},
     }
 
     blocks = []
@@ -235,4 +236,5 @@ def lambda_handler(event, context):
 
 
 if __name__ == "__main__":
-    lambda_handler({"ingestion_date": "2026-03-05"}, {})
+    today = datetime.now().strftime("%Y-%m-%d")
+    lambda_handler({"ingestion_date": today}, {})
