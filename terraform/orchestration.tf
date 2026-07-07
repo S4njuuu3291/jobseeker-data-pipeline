@@ -2,11 +2,11 @@
 #           EVENTBRIDGE SCHEDULER (CRON) → STATE MACHINE
 # =========================================================
 
-# Event Rule untuk jam 9 pagi WIB (02:00 UTC)
+# Event Rule untuk jam 11 pagi WIB (04:00 UTC)
 # Strategi: Capture postingan tadi malam + pagi, apply saat HR aktif
 resource "aws_cloudwatch_event_rule" "scrape_morning" {
   name                = "jobscraper-schedule-morning"
-  schedule_expression = "cron(0 2 * * ? *)"
+  schedule_expression = "cron(0 4 * * ? *)"
   description         = "Trigger State Machine jam 09:00 WIB - Prime time HR activity (pagi)"
 }
 
