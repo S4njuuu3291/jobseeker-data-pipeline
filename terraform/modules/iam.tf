@@ -13,6 +13,7 @@ data "tls_certificate" "github" {
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
+  count = var.env != "prod" ? 0 : 1
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
@@ -26,13 +27,14 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 resource "aws_iam_role" "github_actions_role" {
+  count = var.env != "prod" ? 0 : 1
   name = "jobscraper-github-actions-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Principal = { Federated = one(aws_iam_openid_connect_provider.github[*].arn) }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
@@ -54,7 +56,8 @@ resource "aws_iam_role" "github_actions_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "github_actions_admin" {
-  role       = aws_iam_role.github_actions_role.name
+  count      = var.env != "prod" ? 0 : 1
+  role       = one(aws_iam_role.github_actions_role[*].name)
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
@@ -85,7 +88,7 @@ resource "aws_dynamodb_table" "terraform_lock" {
 # =========================================================
 
 resource "aws_iam_policy" "scraper_s3_write_policy" {
-  name        = "jobscraper_s3_write_policy"
+  name        = "jobscraper_s3_write_policy${local.env_suffix_underscore}"
   description = "Write access for scraper to Bronze and Silver S3 buckets"
 
   tags = {
@@ -121,7 +124,7 @@ resource "aws_iam_policy" "scraper_s3_write_policy" {
 
 # Policy untuk mengizinkan Lambda mengirim pesan ke SQS DLQ
 resource "aws_iam_policy" "lambda_dlq_policy" {
-  name        = "jobscraper_lambda_dlq_policy"
+  name = "jobscraper_lambda_dlq_policy${local.env_suffix_underscore}"
 
   tags = {
     Environment = var.env
@@ -139,7 +142,7 @@ resource "aws_iam_policy" "lambda_dlq_policy" {
 }
 
 resource "aws_iam_policy" "lambda_glue_policy" {
-  name        = "jobscraper_lambda_glue_policy"
+  name        = "jobscraper_lambda_glue_policy${local.env_suffix_underscore}"
   description = "Allow Lambda to create partitions in Glue Catalog (silver layer)"
 
   tags = {
@@ -171,7 +174,7 @@ resource "aws_iam_policy" "lambda_glue_policy" {
 # =========================================================
 
 resource "aws_iam_role" "slack_lambda_role" {
-  name = "jobscraper_slack_lambda_role"
+  name = "jobscraper_slack_lambda_role${local.env_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -194,7 +197,7 @@ resource "aws_iam_role" "slack_lambda_role" {
 
 # Policy untuk Athena (query job postings dari Silver layer)
 resource "aws_iam_policy" "slack_athena_policy" {
-  name        = "jobscraper_slack_athena_policy"
+  name        = "jobscraper_slack_athena_policy${local.env_suffix_underscore}"
   description = "Allow Slack Lambda to query Athena for new job postings"
 
   tags = {
@@ -243,7 +246,7 @@ resource "aws_iam_policy" "slack_athena_policy" {
 
 # Policy untuk SSM (get Slack webhook URL dari Parameter Store)
 resource "aws_iam_policy" "slack_ssm_policy" {
-  name        = "jobscraper_slack_ssm_policy"
+  name        = "jobscraper_slack_ssm_policy${local.env_suffix_underscore}"
   description = "Allow Slack Lambda to retrieve webhook URL from SSM Parameter Store"
 
   tags = {
@@ -269,7 +272,7 @@ resource "aws_iam_policy" "slack_ssm_policy" {
 
 # Policy untuk S3 (read Athena query results)
 resource "aws_iam_policy" "slack_s3_policy" {
-  name        = "jobscraper_slack_s3_policy"
+  name        = "jobscraper_slack_s3_policy${local.env_suffix_underscore}"
   description = "Allow Slack Lambda to read S3 query results from Athena"
 
   tags = {
@@ -328,7 +331,7 @@ resource "aws_iam_role_policy_attachment" "slack_basic_execution" {
 # =========================================================
 
 resource "aws_iam_role" "lambda_exec_role" {
-  name = "jobscraper_lambda_role"
+  name = "jobscraper_lambda_role${local.env_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -380,7 +383,7 @@ resource "aws_iam_role_policy_attachment" "lambda_glue" {
 
 # IAM Role untuk EventBridge
 resource "aws_iam_role" "eventbridge_role" {
-  name = "jobscraper_eventbridge_role"
+  name = "jobscraper_eventbridge_role${local.env_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -400,7 +403,7 @@ resource "aws_iam_role" "eventbridge_role" {
 }
 
 resource "aws_iam_policy" "eventbridge_state_machine_policy" {
-  name        = "jobscraper_eventbridge_state_machine_policy"
+  name        = "jobscraper_eventbridge_state_machine_policy${local.env_suffix_underscore}"
   description = "Policy untuk EventBridge invoke State Machine"
 
   tags = {
@@ -431,7 +434,7 @@ resource "aws_iam_role_policy_attachment" "eventbridge_state_machine_attach" {
 # =========================================================
 
 resource "aws_iam_role" "glue_role" {
-  name = "jobscraper_glue_crawler_role"
+  name = "jobscraper_glue_crawler_role${local.env_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -456,7 +459,7 @@ resource "aws_iam_role_policy_attachment" "glue_service_role" {
 }
 
 resource "aws_iam_policy" "glue_s3_read" {
-  name        = "jobscraper_glue_s3_read_policy"
+  name        = "jobscraper_glue_s3_read_policy${local.env_suffix_underscore}"
   description = "Read access untuk Glue Crawler ke S3 bucket"
 
   tags = {
@@ -491,7 +494,7 @@ resource "aws_iam_role_policy_attachment" "glue_s3_read_attach" {
 # =========================================================
 
 resource "aws_iam_role" "step_functions_role" {
-  name = "jobscraper_step_functions_role"
+  name = "jobscraper_step_functions_role${local.env_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -511,7 +514,7 @@ resource "aws_iam_role" "step_functions_role" {
 }
 
 resource "aws_iam_policy" "step_functions_policy" {
-  name        = "jobscraper_step_functions_policy"
+  name        = "jobscraper_step_functions_policy${local.env_suffix_underscore}"
   description = "Policy untuk Step Functions invoke Lambda dan logging"
 
   tags = {

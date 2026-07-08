@@ -11,6 +11,11 @@ variable "slack_webhook_url" {
   sensitive   = true
 }
 
+variable "project_root" {
+  type        = string
+  description = "Absolute path to project root (used for archive_file source paths)"
+}
+
 variable "env" {
   type        = string
   description = "Environment name (dev, prod)"
@@ -21,13 +26,3 @@ variable "env" {
   }
 }
 
-# =========================================================
-#              ENVIRONMENT SUFFIX HELPER
-# =========================================================
-# Agar existing resource di dev tidak ikut rename (destruktif),
-# suffix hanya ditambahkan untuk non-dev (prod).
-# Contoh: dev → "jobscraper-kalibrr", prod → "jobscraper-kalibrr-prod"
-locals {
-  env_suffix         = var.env == "dev" ? "" : "-${var.env}"
-  env_suffix_underscore = var.env == "dev" ? "" : "_${var.env}"
-}

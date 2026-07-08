@@ -5,8 +5,8 @@
 # Zip file untuk Lambda Layer (requests library)
 resource "archive_file" "slack_alert_layer" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda-layers/slack-alert-layer"
-  output_path = "${path.module}/../.terraform-artifacts/slack-alert-layer.zip"
+  source_dir  = "${var.project_root}/lambda-layers/slack-alert-layer"
+  output_path = "${var.project_root}/.terraform-artifacts/slack-alert-layer.zip"
 }
 
 resource "aws_lambda_layer_version" "slack_alert_layer" {
@@ -195,8 +195,8 @@ resource "aws_lambda_function" "silver_layer" {
 # Resource untuk Slack Alert
 data "archive_file" "slack_alert_code" {
   type        = "zip"
-  source_dir  = "${path.module}/../src/slack-alert"
-  output_path = "${path.module}/../.terraform-artifacts/slack-alert.zip"
+  source_dir  = "${var.project_root}/src/slack-alert"
+  output_path = "${var.project_root}/.terraform-artifacts/slack-alert.zip"
 }
 
 resource "aws_lambda_function" "slack_alert" {
