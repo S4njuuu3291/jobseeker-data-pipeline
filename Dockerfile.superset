@@ -1,0 +1,11 @@
+FROM apache/superset:6.0.0
+USER root
+
+COPY requirements.txt .
+ENV VIRTUAL_ENV=/app/.venv
+RUN uv pip install --no-cache-dir -r requirements.txt
+
+COPY scripts/init-superset.sh /app/init-superset.sh
+RUN chmod +x /app/init-superset.sh
+
+USER superset

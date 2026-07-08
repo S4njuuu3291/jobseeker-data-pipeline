@@ -28,6 +28,10 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     # Local execution for testing
+    import os
+    os.environ.setdefault("AWS_REGION", "ap-southeast-1")
+    os.environ.setdefault("AWS_DEFAULT_REGION", "ap-southeast-1")
+
     logger.info("Running Silver layer pipeline locally...")
     result = run_pipeline()
     print(f"\n{'=' * 50}")

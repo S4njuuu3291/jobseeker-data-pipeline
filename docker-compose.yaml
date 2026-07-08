@@ -1,0 +1,28 @@
+services:
+  # ==========================================
+  # BI / VISUALIZATION LAYER
+  # ==========================================
+  superset_job_scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_SECRET_KEY: "my_very_secret_key_for_this_project"
+      SUPERSET_LOAD_EXAMPLES: "no"
+      AWS_CONFIG_FILE: /app/.aws/config
+      AWS_SHARED_CREDENTIALS_FILE: /app/.aws/credentials
+    networks:
+      - default
+    volumes:
+      - superset_home:/app/superset_home
+      - ./dashboards:/app/dashboards
+      - ~/.aws:/app/.aws:ro
+
+volumes:
+  superset_home:
+
+networks:
+  default:
+    driver: bridge
