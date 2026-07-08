@@ -11,7 +11,7 @@ resource "archive_file" "slack_alert_layer" {
 
 resource "aws_lambda_layer_version" "slack_alert_layer" {
   filename            = archive_file.slack_alert_layer.output_path
-  layer_name          = "jobscraper-slack-alert-layer"
+  layer_name          = "jobscraper-slack-alert-layer${local.env_suffix}"
   compatible_runtimes = ["python3.12"]
   source_code_hash    = archive_file.slack_alert_layer.output_base64sha256
 
@@ -24,7 +24,7 @@ resource "aws_lambda_layer_version" "slack_alert_layer" {
 
 # Resource untuk Kalibrr
 resource "aws_lambda_function" "kalibrr" {
-  function_name = "jobscraper-kalibrr"
+  function_name = "jobscraper-kalibrr${local.env_suffix}"
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
@@ -54,11 +54,19 @@ resource "aws_lambda_function" "kalibrr" {
 
   memory_size = 3008
   timeout     = 900
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    Platform    = "Kalibrr"
+    ManagedBy   = "Terraform"
+  }
 }
 
 # Resource untuk Glints
 resource "aws_lambda_function" "glints" {
-  function_name = "jobscraper-glints"
+  function_name = "jobscraper-glints${local.env_suffix}"
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
@@ -88,11 +96,19 @@ resource "aws_lambda_function" "glints" {
 
   memory_size = 3008
   timeout     = 900
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    Platform    = "Glints"
+    ManagedBy   = "Terraform"
+  }
 }
 
 # Resource untuk Jobstreet
 resource "aws_lambda_function" "jobstreet" {
-  function_name = "jobscraper-jobstreet"
+  function_name = "jobscraper-jobstreet${local.env_suffix}"
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
@@ -122,11 +138,19 @@ resource "aws_lambda_function" "jobstreet" {
 
   memory_size = 3008
   timeout     = 900
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    Platform    = "JobStreet"
+    ManagedBy   = "Terraform"
+  }
 }
 
 # Resource untuk Silver Layer Transformation
 resource "aws_lambda_function" "silver_layer" {
-  function_name = "jobscraper-silver-layer"
+  function_name = "jobscraper-silver-layer${local.env_suffix}"
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
@@ -151,13 +175,21 @@ resource "aws_lambda_function" "silver_layer" {
       platform                   = "kalibrr,glints,jobstreet"
       AWS_S3_BUCKET_NAME         = aws_s3_bucket.bronze.id
       AWS_S3_SILVER_BUCKET_NAME  = aws_s3_bucket.silver.id
-      AWS_GLUE_DATABASE_NAME     = "jobscraper_db"
-      AWS_GLUE_SILVER_TABLE_NAME = "jobscraper_silver_table"
+      AWS_GLUE_DATABASE_NAME     = "jobscraper_db${local.env_suffix_underscore}"
+      AWS_GLUE_SILVER_TABLE_NAME = "jobscraper_silver_table${local.env_suffix_underscore}"
     }
   }
 
   memory_size = 1024
   timeout     = 300
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    Layer       = "Silver"
+    ManagedBy   = "Terraform"
+  }
 }
 
 # Resource untuk Slack Alert
@@ -168,7 +200,7 @@ data "archive_file" "slack_alert_code" {
 }
 
 resource "aws_lambda_function" "slack_alert" {
-  function_name    = "jobscraper-slack-alert"
+  function_name    = "jobscraper-slack-alert${local.env_suffix}"
   role             = aws_iam_role.slack_lambda_role.arn
   filename         = data.archive_file.slack_alert_code.output_path
   source_code_hash = data.archive_file.slack_alert_code.output_base64sha256
@@ -182,7 +214,7 @@ resource "aws_lambda_function" "slack_alert" {
 
   environment {
     variables = {
-      AWS_GLUE_DATABASE_NAME = "jobscraper_db"
+      AWS_GLUE_DATABASE_NAME = "jobscraper_db${local.env_suffix_underscore}"
     }
   }
 
@@ -198,8 +230,10 @@ resource "aws_lambda_function" "slack_alert" {
   ]
 
   tags = {
-    Project   = "Job-Scraper"
-    Purpose   = "SlackAlerts"
-    ManagedBy = "Terraform"
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Purpose     = "SlackAlerts"
+    Owner       = "Sanju"
+    ManagedBy   = "Terraform"
   }
 }

@@ -18,9 +18,10 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
 
   tags = {
-    Project   = "Job-Scraper"
-    ManagedBy = "Terraform"
-    Purpose   = "GitHubOIDC"
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+    Purpose     = "GitHubOIDC"
   }
 }
 
@@ -45,9 +46,10 @@ resource "aws_iam_role" "github_actions_role" {
   })
 
   tags = {
-    Project   = "Job-Scraper"
-    ManagedBy = "Terraform"
-    Purpose   = "GitHubActionsRole"
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+    Purpose     = "GitHubActionsRole"
   }
 }
 
@@ -61,7 +63,7 @@ resource "aws_iam_role_policy_attachment" "github_actions_admin" {
 # =========================================================
 
 resource "aws_dynamodb_table" "terraform_lock" {
-  name         = "jobscraper-terraform-lock"
+  name         = "jobscraper-terraform-lock${local.env_suffix}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 
@@ -71,9 +73,10 @@ resource "aws_dynamodb_table" "terraform_lock" {
   }
 
   tags = {
-    Project   = "Job-Scraper"
-    ManagedBy = "Terraform"
-    Purpose   = "StateLocking"
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+    Purpose     = "StateLocking"
   }
 }
 
@@ -84,6 +87,12 @@ resource "aws_dynamodb_table" "terraform_lock" {
 resource "aws_iam_policy" "scraper_s3_write_policy" {
   name        = "jobscraper_s3_write_policy"
   description = "Write access for scraper to Bronze and Silver S3 buckets"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -112,7 +121,13 @@ resource "aws_iam_policy" "scraper_s3_write_policy" {
 
 # Policy untuk mengizinkan Lambda mengirim pesan ke SQS DLQ
 resource "aws_iam_policy" "lambda_dlq_policy" {
-  name = "jobscraper_lambda_dlq_policy"
+  name        = "jobscraper_lambda_dlq_policy"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -126,6 +141,12 @@ resource "aws_iam_policy" "lambda_dlq_policy" {
 resource "aws_iam_policy" "lambda_glue_policy" {
   name        = "jobscraper_lambda_glue_policy"
   description = "Allow Lambda to create partitions in Glue Catalog (silver layer)"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -164,9 +185,10 @@ resource "aws_iam_role" "slack_lambda_role" {
   })
 
   tags = {
-    Project   = "Job-Scraper"
-    Purpose   = "SlackAlertLambda"
-    ManagedBy = "Terraform"
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Purpose     = "SlackAlertLambda"
+    ManagedBy   = "Terraform"
   }
 }
 
@@ -174,6 +196,12 @@ resource "aws_iam_role" "slack_lambda_role" {
 resource "aws_iam_policy" "slack_athena_policy" {
   name        = "jobscraper_slack_athena_policy"
   description = "Allow Slack Lambda to query Athena for new job postings"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -218,6 +246,12 @@ resource "aws_iam_policy" "slack_ssm_policy" {
   name        = "jobscraper_slack_ssm_policy"
   description = "Allow Slack Lambda to retrieve webhook URL from SSM Parameter Store"
 
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -237,6 +271,12 @@ resource "aws_iam_policy" "slack_ssm_policy" {
 resource "aws_iam_policy" "slack_s3_policy" {
   name        = "jobscraper_slack_s3_policy"
   description = "Allow Slack Lambda to read S3 query results from Athena"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -298,6 +338,13 @@ resource "aws_iam_role" "lambda_exec_role" {
       Principal = { Service = "lambda.amazonaws.com" }
     }]
   })
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    ManagedBy   = "Terraform"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
@@ -343,11 +390,24 @@ resource "aws_iam_role" "eventbridge_role" {
       Principal = { Service = "events.amazonaws.com" }
     }]
   })
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    ManagedBy   = "Terraform"
+  }
 }
 
 resource "aws_iam_policy" "eventbridge_state_machine_policy" {
   name        = "jobscraper_eventbridge_state_machine_policy"
   description = "Policy untuk EventBridge invoke State Machine"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -381,6 +441,13 @@ resource "aws_iam_role" "glue_role" {
       Principal = { Service = "glue.amazonaws.com" }
     }]
   })
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    ManagedBy   = "Terraform"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "glue_service_role" {
@@ -391,6 +458,13 @@ resource "aws_iam_role_policy_attachment" "glue_service_role" {
 resource "aws_iam_policy" "glue_s3_read" {
   name        = "jobscraper_glue_s3_read_policy"
   description = "Read access untuk Glue Crawler ke S3 bucket"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -427,11 +501,24 @@ resource "aws_iam_role" "step_functions_role" {
       Principal = { Service = "states.amazonaws.com" }
     }]
   })
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    ManagedBy   = "Terraform"
+  }
 }
 
 resource "aws_iam_policy" "step_functions_policy" {
   name        = "jobscraper_step_functions_policy"
   description = "Policy untuk Step Functions invoke Lambda dan logging"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"

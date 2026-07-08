@@ -21,7 +21,7 @@ resource "aws_lakeformation_data_lake_settings" "slack_lambda_admin" {
 
 # Athena Workgroup untuk Slack Lambda query
 resource "aws_athena_workgroup" "slack_alert_workgroup" {
-  name          = "jobscraper-slack-alert-workgroup"
+  name          = "jobscraper-slack-alert-workgroup${local.env_suffix}"
   force_destroy = true
   state         = "ENABLED"
 
@@ -39,8 +39,9 @@ resource "aws_athena_workgroup" "slack_alert_workgroup" {
   }
 
   tags = {
-    Project = "Job-Scraper"
-    Purpose = "SlackAlerts"
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Purpose     = "SlackAlerts"
   }
 }
 
@@ -49,13 +50,20 @@ resource "aws_athena_workgroup" "slack_alert_workgroup" {
 # =========================================================
 
 resource "aws_glue_catalog_database" "jobscraper_db" {
-  name        = "jobscraper_db"
+  name        = "jobscraper_db${local.env_suffix_underscore}"
   description = "Glue Catalog Database untuk Job Scraper Pipeline"
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
+    ManagedBy   = "Terraform"
+  }
 }
 
 # SILVER TABLE
 resource "aws_glue_catalog_table" "silver_table" {
-  name          = "jobscraper_silver_table"
+  name          = "jobscraper_silver_table${local.env_suffix_underscore}"
   database_name = aws_glue_catalog_database.jobscraper_db.name
   table_type    = "EXTERNAL_TABLE"
 

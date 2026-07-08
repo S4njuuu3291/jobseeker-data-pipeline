@@ -5,13 +5,14 @@
 # BRONZE
 
 resource "aws_s3_bucket" "bronze" {
-  bucket        = "jobscraper-bronze-data-8424560"
+  bucket        = "jobscraper-bronze-data-8424560${local.env_suffix}"
   force_destroy = true
 
   tags = {
-    Layer   = "Bronze"
-    Project = "Job-Scraper"
-    Owner   = "Sanju"
+    Environment = var.env
+    Layer       = "Bronze"
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
   }
 }
 
@@ -27,13 +28,14 @@ resource "aws_s3_bucket_public_access_block" "bronze" {
 # SILVER
 
 resource "aws_s3_bucket" "silver" {
-  bucket        = "jobscraper-silver-data-8424560"
+  bucket        = "jobscraper-silver-data-8424560${local.env_suffix}"
   force_destroy = true
 
   tags = {
-    Layer   = "Silver"
-    Project = "Job-Scraper"
-    Owner   = "Sanju"
+    Environment = var.env
+    Layer       = "Silver"
+    Project     = "Job-Scraper"
+    Owner       = "Sanju"
   }
 }
 

@@ -10,6 +10,12 @@ resource "aws_ecr_repository" "scraper_repo" {
   image_scanning_configuration {
     scan_on_push = true
   }
+
+  tags = {
+    Environment = var.env
+    Project     = "Job-Scraper"
+    ManagedBy   = "Terraform"
+  }
 }
 
 data "aws_ecr_image" "scraper_latest" {
