@@ -214,7 +214,9 @@ resource "aws_lambda_function" "slack_alert" {
 
   environment {
     variables = {
-      AWS_GLUE_DATABASE_NAME = "jobscraper_db${local.env_suffix_underscore}"
+      AWS_GLUE_DATABASE_NAME     = "jobscraper_db${local.env_suffix_underscore}"
+      ATHENA_WORKGROUP           = "jobscraper-slack-alert-workgroup${local.env_suffix}"
+      ATHENA_VIEW_NAME           = "v_jobscraper_clean"
     }
   }
 

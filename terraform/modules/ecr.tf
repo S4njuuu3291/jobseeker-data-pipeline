@@ -3,7 +3,7 @@
 # =========================================================
 
 resource "aws_ecr_repository" "scraper_repo" {
-  name                 = "job-scraper-lambda"
+  name                 = "job-scraper-lambda${local.env_suffix}"
   force_delete         = true
   image_tag_mutability = "MUTABLE"
 

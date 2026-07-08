@@ -1,4 +1,7 @@
 # Lazy import untuk cold start cepat
+import asyncio
+
+
 async def jobscraper_kalibrr(url: str, headless: bool = True):
     # Import HANYA saat fungsi dipanggil (lazy loading)
     from playwright.async_api import Browser, BrowserContext, async_playwright
@@ -156,4 +159,4 @@ async def jobscraper_kalibrr(url: str, headless: bool = True):
 if __name__ == "__main__":
     URL = "https://kalibrr.id/id-ID/home/w/100-internship-_-ojt/te/data-engineer-intern"
 
-    # asyncio.run(jobscraper_kalibrr(URL))
+    asyncio.run(jobscraper_kalibrr(URL))
