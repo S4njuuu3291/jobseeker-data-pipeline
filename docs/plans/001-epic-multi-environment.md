@@ -14,20 +14,21 @@ Refactor infrastruktur Terraform dari single environment menjadi multi-environme
 ### Phase 1: Refactor Terraform ke Module + Env Structure
 
 #### [TASK-1] Extract shared Terraform modules
-- Pindah resource definitions ke `terraform/modules/{s3-bucket,lambda-function,iam-role,glue-crawler,ecr,ssm,eventbridge,step-functions}`
+- Pindah resource definitions keslas `terraform/modules/{s3-bucket,lambda-function,iam-role,glue-crawler,ecr,ssm,eventbridge,step-functions}`
 - Module harus parameterized: `env_name`, `bucket_name`, `tags`, dll
 - **Story Points:** 5
 
 #### [TASK-2] Migrate existing infra ke `envs/prod/`
 - Pindahkan current `.tf` files ke `terraform/envs/prod/` — **tanpa rename resource**
-- Import state yang sudah ada (`terraform import` untuk tiap resource)
-- Pastikan `terraform plan` menghasilkan `No changes` setelah migrasi
+- State migration via `terraform state mv` (55 resource ke `module.base.`)
+- Sisa: `Plan: 33 to change` (tag updates, aman diapply nanti)
 - **Story Points:** 8
 
 #### [TASK-3] Setup `envs/dev/` dari scratch
-- Copy struktur prod, ubah variable: bucket name suffix `-dev`, resource naming suffix `-dev`
-- State file terpisah (backend key: `job-data-pipeline/dev/terraform.tfstate`)
-- `terraform apply` untuk bikin infra dev baru
+- Copy struktur prod, ubah variable: `env = "dev"` → suffix `-dev` otomatis
+- State file terpisah (`dev/terraform.tfstate`)
+- ✅ Infra non-container berhasil di-apply
+- ⏳ Container Lambdas (kalibrr, glints, jobstreet, silver_layer) butuh image di ECR dev
 - **Story Points:** 5
 
 ### Phase 2: Update Kode Lambda
