@@ -64,7 +64,7 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/prod init
       - name: Terraform Apply
-        run: terraform -chdir=terraform/envs/prod apply -var-file=terraform.tfvars -auto-approve
+        run: terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -103,7 +103,7 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/dev init
       - name: Terraform Apply
-        run: terraform -chdir=terraform/envs/dev apply -var-file=terraform.tfvars -auto-approve
+        run: terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
