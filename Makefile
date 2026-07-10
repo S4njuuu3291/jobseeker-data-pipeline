@@ -1,4 +1,4 @@
-.PHONY: sync-main update-main fmt lint mypy test ci help
+.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply docker-ecr-login-dev docker-ecr-push-dev tf-dev-plan tf-dev-apply
 
 # Git shortcuts
 sync-main:
@@ -51,7 +51,6 @@ help:
 	@echo "Docker:"
 	@echo "  make docker-build  - Build docker images"
 	@echo "  make docker-up     - Start containers in background"
-	@echo "  make init-superset - Init Superset (db upgrade, create admin, init)"
 
 docker-build:
 	docker compose build
@@ -59,5 +58,3 @@ docker-build:
 docker-up:
 	docker compose up -d
 
-init-superset:
-	docker compose exec superset_job_scraper /bin/bash /app/init-superset.sh

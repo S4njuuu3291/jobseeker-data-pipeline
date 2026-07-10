@@ -6,6 +6,6 @@ terraform {
     encrypt = true
     # Uncomment line below AFTER first terraform apply (to create DynamoDB table)
     # Then run: terraform init
-    dynamodb_table = "jobscraper-terraform-lock"
+    use_lockfile = true
   }
 }
