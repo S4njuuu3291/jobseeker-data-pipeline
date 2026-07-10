@@ -220,7 +220,8 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
 
 
 def lambda_handler(event, context):
-    env = os.getenv("ENVIRONMENT", "prod")
+    # Allow override via event payload, fallback to env var, default prod
+    env = event.get("ENVIRONMENT") or os.getenv("ENVIRONMENT", "prod")
 
     # Dev mode: kirim pesan simple aja, skip query/format/parse
     if env == "dev":
