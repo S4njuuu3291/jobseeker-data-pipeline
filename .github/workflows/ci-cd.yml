@@ -65,6 +65,11 @@ jobs:
       # ── Phase 1: Infra only (no image needed) ──
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/prod init
+      - name: Install Slack Alert Layer dependencies
+        run: |
+          pip install -r lambda-layers/slack-alert-layer/requirements.txt \
+            -t lambda-layers/slack-alert-layer/python/lib/python3.12/site-packages/ \
+            --no-cache-dir
       - name: "Phase 1: Full infra (S3, IAM, SSM, ECR, CloudWatch, Glue, Lambda)"
         run: |
           terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve -refresh=false
@@ -115,6 +120,11 @@ jobs:
       # ── Phase 1: Infra only (no image needed) ──
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/dev init
+      - name: Install Slack Alert Layer dependencies
+        run: |
+          pip install -r lambda-layers/slack-alert-layer/requirements.txt \
+            -t lambda-layers/slack-alert-layer/python/lib/python3.12/site-packages/ \
+            --no-cache-dir
       - name: "Phase 1: Full infra (S3, IAM, SSM, ECR, CloudWatch, Glue)"
         run: |
           terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve -refresh=false
