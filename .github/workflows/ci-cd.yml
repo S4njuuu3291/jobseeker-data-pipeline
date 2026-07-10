@@ -67,7 +67,7 @@ jobs:
         run: terraform -chdir=terraform/envs/prod init
       - name: "Phase 1: Infra (S3, IAM, SSM, ECR, CloudWatch, Glue)"
         run: |
-          terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve \
+          terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve -refresh=false \
             -target=module.base.aws_s3_bucket.bronze \
             -target=module.base.aws_s3_bucket.silver \
             -target=module.base.aws_s3_bucket_public_access_block.bronze \
@@ -106,7 +106,7 @@ jobs:
 
       # ── Phase 3: Lambda + Step Functions ──
       - name: "Phase 3: Lambda & Orchestration"
-        run: terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve
+        run: terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve -refresh=false
 
   deploy-dev:
     name: "\U0001F9EA Dev"
@@ -130,7 +130,7 @@ jobs:
         run: terraform -chdir=terraform/envs/dev init
       - name: "Phase 1: Infra (S3, IAM, SSM, ECR, CloudWatch, Glue)"
         run: |
-          terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve \
+          terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve -refresh=false \
             -target=module.base.aws_s3_bucket.bronze \
             -target=module.base.aws_s3_bucket.silver \
             -target=module.base.aws_s3_bucket_public_access_block.bronze \
@@ -169,4 +169,4 @@ jobs:
 
       # ── Phase 3: Lambda + Step Functions ──
       - name: "Phase 3: Lambda & Orchestration"
-        run: terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve
+        run: terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve -refresh=false
