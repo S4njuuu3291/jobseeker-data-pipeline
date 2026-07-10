@@ -28,7 +28,7 @@ resource "aws_lambda_function" "kalibrr" {
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
-  image_uri     = "${aws_ecr_repository.scraper_repo.repository_url}@${local.ecr_image_digest}"
+  image_uri     = local.ecr_image_uri
 
   publish = false
 
@@ -70,7 +70,7 @@ resource "aws_lambda_function" "glints" {
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
-  image_uri     = "${aws_ecr_repository.scraper_repo.repository_url}@${local.ecr_image_digest}"
+  image_uri     = local.ecr_image_uri
 
   publish = false
 
@@ -112,7 +112,7 @@ resource "aws_lambda_function" "jobstreet" {
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
-  image_uri     = "${aws_ecr_repository.scraper_repo.repository_url}@${local.ecr_image_digest}"
+  image_uri     = local.ecr_image_uri
 
   publish = false
 
@@ -154,7 +154,7 @@ resource "aws_lambda_function" "silver_layer" {
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
-  image_uri     = "${aws_ecr_repository.scraper_repo.repository_url}@${local.ecr_image_digest}"
+  image_uri     = local.ecr_image_uri
 
   publish = false
 
@@ -218,7 +218,7 @@ resource "aws_lambda_function" "slack_alert" {
       ATHENA_WORKGROUP           = "jobscraper-slack-alert-workgroup${local.env_suffix}"
       ATHENA_VIEW_NAME           = "v_jobscraper_clean"
       ENVIRONMENT                = var.env
-      AWS_REGION                 = var.aws_region
+      SSM_WEBHOOK_PARAM_NAME     = "/jobscraper/slack/webhook_url${local.env_suffix}"
     }
   }
 
