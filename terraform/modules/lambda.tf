@@ -10,10 +10,10 @@ data "archive_file" "slack_alert_layer" {
 }
 
 resource "aws_lambda_layer_version" "slack_alert_layer" {
-  filename            = archive_file.slack_alert_layer.output_path
+  filename            = data.archive_file.slack_alert_layer.output_path
   layer_name          = "jobscraper-slack-alert-layer${local.env_suffix}"
   compatible_runtimes = ["python3.12"]
-  source_code_hash    = archive_file.slack_alert_layer.output_base64sha256
+  source_code_hash    = data.archive_file.slack_alert_layer.output_base64sha256
 
   depends_on = [aws_iam_role.slack_lambda_role]
 }
