@@ -65,22 +65,9 @@ jobs:
       # ── Phase 1: Infra only (no image needed) ──
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/prod init
-      - name: "Phase 1: Infra (S3, IAM, SSM, ECR, CloudWatch, Glue)"
+      - name: "Phase 1: Full infra (S3, IAM, SSM, ECR, CloudWatch, Glue, Lambda)"
         run: |
-          terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve -refresh=false \
-            -target=module.base.aws_s3_bucket.bronze \
-            -target=module.base.aws_s3_bucket.silver \
-            -target=module.base.aws_s3_bucket_public_access_block.bronze \
-            -target=module.base.aws_s3_bucket_public_access_block.silver \
-            -target=module.base.aws_iam_role.lambda_exec_role \
-            -target=module.base.aws_iam_role.step_functions_role \
-            -target=module.base.aws_iam_role.slack_lambda_role \
-            -target=module.base.aws_ssm_parameter.slack_webhook_url \
-            -target=module.base.aws_ecr_repository.scraper_repo \
-            -target=module.base.aws_ecr_lifecycle_policy.cleanup \
-            -target=module.base.aws_cloudwatch_log_group.step_functions_logs \
-            -target=module.base.aws_glue_catalog_database.jobscraper_db \
-            -target=module.base.aws_dynamodb_table.terraform_lock
+          terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve -refresh=false
 
       # ── Phase 2: Build & Push Docker image ──
       - name: Set up Docker Buildx
@@ -128,7 +115,7 @@ jobs:
       # ── Phase 1: Infra only (no image needed) ──
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/dev init
-      - name: "Phase 1: Infra (S3, IAM, SSM, ECR, CloudWatch, Glue)"
+      - name: "Phase 1: Full infra (S3, IAM, SSM, ECR, CloudWatch, Glue)"
         run: |
           terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve -refresh=false \
             -target=module.base.aws_s3_bucket.bronze \
