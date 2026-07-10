@@ -80,11 +80,6 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Install Slack Alert Layer dependencies
-        run: |
-          pip install -r lambda-layers/slack-alert-layer/requirements.txt \
-            -t lambda-layers/slack-alert-layer/python/lib/python3.12/site-packages/ \
-            --no-cache-dir
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
@@ -135,11 +130,6 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Install Slack Alert Layer dependencies
-        run: |
-          pip install -r lambda-layers/slack-alert-layer/requirements.txt \
-            -t lambda-layers/slack-alert-layer/python/lib/python3.12/site-packages/ \
-            --no-cache-dir
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
