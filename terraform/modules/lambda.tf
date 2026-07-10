@@ -3,7 +3,7 @@
 # =========================================================
 
 # Zip file untuk Lambda Layer (requests library)
-resource "archive_file" "slack_alert_layer" {
+data "archive_file" "slack_alert_layer" {
   type        = "zip"
   source_dir  = "${var.project_root}/lambda-layers/slack-alert-layer"
   output_path = "${path.root}/.terraform-artifacts/slack-alert-layer.zip"
