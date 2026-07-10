@@ -61,6 +61,18 @@ resource "aws_glue_catalog_database" "jobscraper_db" {
   }
 }
 
+# Grant GitHub Actions role DESCRIBE access via Lake Formation
+resource "aws_lakeformation_permissions" "github_actions_db_access" {
+  count = var.env != "prod" ? 0 : 1
+
+  principal   = one(aws_iam_role.github_actions_role[*].arn)
+  permissions = ["DESCRIBE"]
+
+  database {
+    name = aws_glue_catalog_database.jobscraper_db.name
+  }
+}
+
 # SILVER TABLE
 resource "aws_glue_catalog_table" "silver_table" {
   name          = "jobscraper_silver_table${local.env_suffix_underscore}"
