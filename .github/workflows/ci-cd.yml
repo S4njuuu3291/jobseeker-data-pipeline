@@ -61,10 +61,29 @@ jobs:
           role-to-assume: arn:aws:iam::730335315755:role/jobscraper-github-actions-role
           aws-region: ap-southeast-1
       - uses: hashicorp/setup-terraform@v3
+
+      # ── Phase 1: Infra (S3, IAM, SSM, ECR, Monitoring, Glue) ──
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/prod init
-      - name: Terraform Apply
-        run: terraform -chdir=terraform/envs/prod apply -var-file=terraform.tfvars -auto-approve
+      - name: "Phase 1: Infra only"
+        run: |
+          terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve \
+            -target=module.base.aws_s3_bucket.bronze \
+            -target=module.base.aws_s3_bucket.silver \
+            -target=module.base.aws_s3_bucket_public_access_block.bronze \
+            -target=module.base.aws_s3_bucket_public_access_block.silver \
+            -target=module.base.aws_iam_role.lambda_exec_role \
+            -target=module.base.aws_iam_role.step_functions_role \
+            -target=module.base.aws_iam_role.slack_lambda_role \
+            -target=module.base.aws_iam_role_policy_attachment \
+            -target=module.base.aws_ssm_parameter.slack_webhook_url \
+            -target=module.base.aws_ecr_repository.scraper_repo \
+            -target=module.base.aws_ecr_lifecycle_policy.cleanup \
+            -target=module.base.aws_cloudwatch_log_group \
+            -target=module.base.aws_glue_catalog_database \
+            -target=module.base.aws_dynamodb_table.terraform_lock
+
+      # ── Phase 2: Build & Push Docker image ──
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -84,6 +103,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # ── Phase 3: Apply remaining (Lambda + Step Functions) ──
+      - name: "Phase 3: Lambda & Orchestration"
+        run: terraform -chdir=terraform/envs/prod apply -var="env=prod" -auto-approve
+
   deploy-dev:
     name: "🧪 Dev"
     runs-on: ubuntu-latest
@@ -100,10 +123,29 @@ jobs:
           role-to-assume: arn:aws:iam::730335315755:role/jobscraper-github-actions-role
           aws-region: ap-southeast-1
       - uses: hashicorp/setup-terraform@v3
+
+      # ── Phase 1: Infra (S3, IAM, SSM, ECR, Monitoring, Glue) ──
       - name: Terraform Init
         run: terraform -chdir=terraform/envs/dev init
-      - name: Terraform Apply
-        run: terraform -chdir=terraform/envs/dev apply -var-file=terraform.tfvars -auto-approve
+      - name: "Phase 1: Infra only"
+        run: |
+          terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve \
+            -target=module.base.aws_s3_bucket.bronze \
+            -target=module.base.aws_s3_bucket.silver \
+            -target=module.base.aws_s3_bucket_public_access_block.bronze \
+            -target=module.base.aws_s3_bucket_public_access_block.silver \
+            -target=module.base.aws_iam_role.lambda_exec_role \
+            -target=module.base.aws_iam_role.step_functions_role \
+            -target=module.base.aws_iam_role.slack_lambda_role \
+            -target=module.base.aws_iam_role_policy_attachment \
+            -target=module.base.aws_ssm_parameter.slack_webhook_url \
+            -target=module.base.aws_ecr_repository.scraper_repo \
+            -target=module.base.aws_ecr_lifecycle_policy.cleanup \
+            -target=module.base.aws_cloudwatch_log_group \
+            -target=module.base.aws_glue_catalog_database \
+            -target=module.base.aws_dynamodb_table.terraform_lock
+
+      # ── Phase 2: Build & Push Docker image ──
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -122,3 +164,7 @@ jobs:
           tags: ${{ steps.login-ecr.outputs.registry }}/job-scraper-lambda-dev:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # ── Phase 3: Apply remaining (Lambda + Step Functions) ──
+      - name: "Phase 3: Lambda & Orchestration"
+        run: terraform -chdir=terraform/envs/dev apply -var="env=dev" -auto-approve

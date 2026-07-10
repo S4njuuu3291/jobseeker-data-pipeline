@@ -18,9 +18,17 @@ resource "aws_ecr_repository" "scraper_repo" {
   }
 }
 
-data "aws_ecr_image" "scraper_latest" {
-  repository_name = aws_ecr_repository.scraper_repo.name
-  image_tag       = "latest"
+# Cari image digest terbaru — graceful fallback jika repo masih kosong
+data "external" "scraper_latest" {
+  program = ["bash", "-c", format(<<EOT
+    DIGEST=$(aws ecr describe-images \
+      --repository-name %s \
+      --image-ids imageTag=latest \
+      --query 'imageDetails[0].imageDigest' \
+      --output text 2>/dev/null || echo "")
+    echo "{\"digest\": \"$DIGEST\"}"
+  EOT
+  , aws_ecr_repository.scraper_repo.name)]
 }
 
 resource "aws_ecr_lifecycle_policy" "cleanup" {
