@@ -9,30 +9,23 @@ async def run_glints_pipeline(keywords: list):
     from src.utils.data_validator import validate_job_data
     from src.utils.upload_to_s3 import upload_to_s3
 
-    df_glints_full = (
-        pd.DataFrame()
-    )  # DataFrame kosong untuk menampung semua hasil dari berbagai keyword
+    df_glints_full = pd.DataFrame()
+    seen_ids = set()  # 👈 Track job_id yang sudah pernah discrap
 
     for keyword in keywords:
-        print("--- Start Glints Pipeline ---")
-        URL = (
-            f"https://glints.com/id/opportunities/jobs/explore?"
-            f"keyword={keyword}&country=ID&locationName=All+Cities%2FProvinces"
-            f"&lowestLocationLevel=1&sortBy=LATEST&jobTypes=INTERNSHIP%2CFULL_TIME"
-            f"&yearsOfExperienceRanges=LESS_THAN_A_YEAR%2CFRESH_GRAD%2CNO_EXPERIENCE"
-        )
-        raw_data = await jobscraper_glints(URL, headless=True)
+        print(f"🔍 Scraping keyword: {keyword}")
+        URL = f"https://glints.com/id/opportunities/jobs/explore?keyword={keyword}&country=ID&locationName=All+Cities%2FProvinces&lowestLocationLevel=1&sortBy=LATEST"
+        raw_data = await jobscraper_glints(URL, headless=True, seen_ids=seen_ids)
 
         if not raw_data:
             print("❌ Gagal: Tidak ada data yang berhasil ditarik.")
             continue
 
+        print(f" ✅ Job baru dari keyword: {len(raw_data)}")
         df_glints = pd.DataFrame(raw_data)
         df_glints["keyword"] = keyword
 
-        df_glints_full = pd.concat(
-            [df_glints_full, df_glints], ignore_index=True
-        )  # Gabungkan hasil ke DataFrame utama
+        df_glints_full = pd.concat([df_glints_full, df_glints], ignore_index=True)
 
     try:
         df = pd.DataFrame(df_glints_full)
@@ -56,9 +49,8 @@ async def run_glints_pipeline(keywords: list):
 
 if __name__ == "__main__":
     keywords = [
-        "data+engineer+intern",
-        "etl+developer+intern",
-        "big+data+intern",
-        "bi+engineer+intern",
+        "data+engineer",
+        "etl",
+        "big+data+engineer",
     ]
     asyncio.run(run_glints_pipeline(keywords))

@@ -6,6 +6,7 @@ async def run_jobstreet_pipeline(keywords: list):
     # Import HANYA saat fungsi dipanggil
     import pandas as pd
     from src.scraper.jobscraper_jobstreet import jobscraper_jobstreet
+    seen_ids = set()  # 👈 Track job_id yang sudah pernah discrap
     from src.utils.data_validator import validate_job_data
     from src.utils.upload_to_s3 import upload_to_s3
 
@@ -17,7 +18,7 @@ async def run_jobstreet_pipeline(keywords: list):
         print("--- Start JobStreet Pipeline ---")
         URL = f"https://id.jobstreet.com/id/{keyword}-jobs?daterange=7"
 
-        raw_data = await jobscraper_jobstreet(URL, headless=True)
+        raw_data = await jobscraper_jobstreet(URL, headless=True, seen_ids=seen_ids)
 
         if not raw_data:
             print("ERROR: No data extracted.")
@@ -52,9 +53,8 @@ async def run_jobstreet_pipeline(keywords: list):
 
 if __name__ == "__main__":
     keywords = [
-        "data-engineer-intern",
-        "etl-developer-intern",
-        "big-data-intern",
-        "bi-engineer-intern",
+        "data-engineer",
+        "etl",
+        "big-data-engineer",
     ]
     asyncio.run(run_jobstreet_pipeline(keywords))

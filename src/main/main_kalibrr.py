@@ -3,6 +3,7 @@ async def run_kalibrr_pipeline(keywords: list[str]):
     # Import pandas HANYA saat pipeline jalan
     import pandas as pd
     from src.scraper.jobscraper_kalibrr import jobscraper_kalibrr
+    seen_ids = set()  # 👈 Track job_id yang sudah pernah discrap
     from src.utils.data_validator import validate_job_data
     from src.utils.upload_to_s3 import upload_to_s3
 
@@ -12,12 +13,9 @@ async def run_kalibrr_pipeline(keywords: list[str]):
 
     for keyword in keywords:
         print("--- Start Kalibrr Pipeline ---")
-        URL = (
-            f"https://kalibrr.id/id-ID/home/w/100-internship-_-ojt/w/"
-            f"200-entry-level-_-junior-and-apprentice/te/{keyword}?sort=Relevance"
-        )
-
-        raw_data = await jobscraper_kalibrr(URL, headless=True)
+        # url pakai: https://kalibrr.id/id-ID/home/te/data-engineer-intern?sort=Freshness
+        URL = f"https://kalibrr.id/id-ID/home/te/{keyword}?sort=Freshness"
+        raw_data = await jobscraper_kalibrr(URL, headless=True, seen_ids=seen_ids)
 
         if not raw_data:
             print("❌ Gagal: Tidak ada data yang berhasil ditarik.")
@@ -54,9 +52,8 @@ if __name__ == "__main__":
     import asyncio
 
     keywords = [
-        "data-engineer-intern",
-        "etl-developer-intern",
-        "big-data-intern",
-        "bi-engineer-intern",
+        "data-engineer",
+        "etl",
+        "big-data-engineer",
     ]
     asyncio.run(run_kalibrr_pipeline(keywords))
