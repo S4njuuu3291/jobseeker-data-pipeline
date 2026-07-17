@@ -39,6 +39,9 @@ def get_bronze_object(list_platforms: list[str]) -> pd.DataFrame:
         df = pd.DataFrame()
 
         for platform in list_platforms:
+        #     if platform != "glints":
+        #         logger.info(f"Skipping platform: {platform}")
+        #         continue
             object_key_prefix = f"platform={platform}/ingestion_date={ingestion_date}/"
             logger.info(f"Listing objects with prefix: {object_key_prefix}")
 
