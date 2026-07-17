@@ -1,8 +1,9 @@
 # Lazy import untuk cold start cepat
-async def jobscraper_jobstreet(url: str, headless: bool = True):
+async def jobscraper_jobstreet(url: str, headless: bool = True, seen_ids: set = None):
     # Import HANYA saat fungsi dipanggil (lazy loading)
     from playwright.async_api import Browser, BrowserContext, async_playwright
     from src.utils.scraper_utils import (
+        normalize_url,
         create_browser,
         create_stealth_context,
         fast_human_scroll,
@@ -65,38 +66,28 @@ async def jobscraper_jobstreet(url: str, headless: bool = True):
                     # 1. Job Title
                     title_elem = card.locator('[data-automation="jobTitle"]').first
                     job_title = (await title_elem.text_content()).strip()
-
-                    # --- INTEGRASI FILTER PUSAT ---
-                    job_title_lower = job_title.lower()
-                    if not any(word in job_title_lower for word in ALLOWED) or any(
-                        word in job_title_lower for word in BLOCKED
-                    ):
+                    
+                    # Filter IT jobs
+                    from src.ai.nlp import filter_job
+                    if not filter_job(job_title):
                         continue
 
                     # 2. URL (Path relatif, perlu prefix)
                     relative_url = await title_elem.get_attribute("href")
                     full_url = f"https://id.jobstreet.com{relative_url}"
 
-                    # 3. Company Name
-                    company_elem = card.locator('[data-automation="jobCompany"]').first
-                    company_name = (await company_elem.text_content()).strip()
-
-                    # 4. Location
-                    # Mengambil teks lokasi (Jakarta Selatan, dll)
-                    location_elem = card.locator(
-                        '[data-automation="jobLocation"]'
-                    ).first
-                    location = (await location_elem.text_content()).strip()
-
-                    # 5. Job ID (Hash dari URL agar konsisten antar platform)
-                    job_id = hashlib.md5(full_url.encode()).hexdigest()
+                    # 5. Job ID (Hash dari URL tanpa parameter tracking)
+                    job_id = hashlib.md5(normalize_url(full_url).encode()).hexdigest()
+                    # Skip job yang sudah pernah discrap
+                    if seen_ids is not None:
+                        if job_id in seen_ids:
+                            continue
+                        seen_ids.add(job_id)
 
                     results.append(
                         {
                             "job_id": job_id,
                             "job_title": job_title,
-                            "company_name": company_name,
-                            "location": location,
                             "job_url": full_url,
                             "platform": "jobstreet",
                             "scraped_at": timestamp,
@@ -104,10 +95,59 @@ async def jobscraper_jobstreet(url: str, headless: bool = True):
                     )
                 except Exception:
                     continue
+            
+                        # 🔄 Loop halaman detail untuk ambil job description
+            if results:
+                print(f"\n📄 Scraping {len(results)} halaman detail job...")
+                for i, job in enumerate(results, 1):
+                    try:
+                        detail_page = await context.new_page()
+                        await detail_page.goto(job["job_url"], wait_until="domcontentloaded", timeout=30000)
+                        
+                        # 1. Ambil job description (selector stabil)
+                        desc_selector = '[data-automation="jobAdDetails"]'
+                        job_desc = await detail_page.text_content(desc_selector)
+                        
+                        # 2. Ambil metadata
+                        title = await detail_page.text_content('[data-automation="job-detail-title"]')
+                        company = await detail_page.text_content('[data-automation="advertiser-name"]')
+                        location = await detail_page.text_content('[data-automation="job-detail-location"]')
+                        salary = await detail_page.text_content('[data-automation="job-detail-salary"]')
+                        work_type = await detail_page.text_content('[data-automation="job-detail-work-type"]')
+                        
+                        # 3. Gabungkan semua
+                        if job_desc:
+                            full_text = f"{title or ''}\n{company or ''}\n{location or ''}\n{salary or ''}\n{work_type or ''}\n\n{job_desc}"
+                            job["job_description"] = full_text.strip()
+                            print(f"  [{i}/{len(results)}] ✅ {job['job_url']}")
 
+                        else:
+                            print(f"  [{i}/{len(results)}] ⚠️ Kosong - {job['job_title'][:30]}...")
+                        
+                        await detail_page.close()
+                        
+                    except Exception as e:
+                        print(f"  [{i}/{len(results)}] ❌ Gagal: {e}")
+                    
             await context.close()
             await browser.close()
 
             return results
 
     return await _scrape()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        keyword = "data-engineer-intern"
+        url = f"https://id.jobstreet.com/id/{keyword}-jobs?daterange=7"
+
+        print(f"🧪 Test scraping JobStreet with keyword: {keyword}")
+        results = await jobscraper_jobstreet(url, headless=True)
+        print(f"\n📊 Total results: {len(results)}")
+        if results:
+            print(f"📄 Sample: {results[0]}")
+
+    asyncio.run(main())

@@ -2,10 +2,11 @@
 import asyncio
 
 
-async def jobscraper_kalibrr(url: str, headless: bool = True):
+async def jobscraper_kalibrr(url: str, headless: bool = True, seen_ids: set = None):
     # Import HANYA saat fungsi dipanggil (lazy loading)
     from playwright.async_api import Browser, BrowserContext, async_playwright
     from src.utils.scraper_utils import (
+        normalize_url,
         create_browser,
         create_stealth_context,
         human_delay,
@@ -106,38 +107,26 @@ async def jobscraper_kalibrr(url: str, headless: bool = True):
                     title_elem = card.locator('h2 a[itemprop="name"]').first
                     job_title = (await title_elem.text_content()).strip()
 
-                    job_title_lower = job_title.lower()
-
-                    is_relevant = any(word in job_title_lower for word in ALLOWED)
-                    is_trash = any(word in job_title_lower for word in BLOCKED)
-
-                    if not is_relevant or is_trash:
+                    # Filter IT jobs
+                    from src.ai.nlp import filter_job
+                    if not filter_job(job_title):
                         continue
 
                     relative_url = await title_elem.get_attribute("href")
                     full_url = f"https://www.kalibrr.com{relative_url}"
 
-                    # 2. Company Name (Pakai selector class yang lebih simpel)
-                    company_name = (
-                        await card.locator(
-                            "a.k-text-subdued.k-font-bold"
-                        ).first.text_content()
-                    ).strip()
-
-                    # 3. Location (Mencari icon map atau class lokasi)
-                    location = (
-                        await card.locator("span.k-text-gray-500").first.text_content()
-                    ).strip()
-
-                    # 4. Create Job ID (Sesuai diskusi kita: Hash dari URL)
-                    job_id = hashlib.md5(full_url.encode()).hexdigest()
+                    # 4. Create Job ID (Hash dari URL tanpa parameter tracking)
+                    job_id = hashlib.md5(normalize_url(full_url).encode()).hexdigest()
+                    # Skip job yang sudah pernah discrap
+                    if seen_ids is not None:
+                        if job_id in seen_ids:
+                            continue
+                        seen_ids.add(job_id)
 
                     results.append(
                         {
                             "job_id": job_id,
                             "job_title": job_title,
-                            "company_name": company_name,
-                            "location": location,
                             "job_url": full_url,
                             "platform": "kalibrr",
                             "scraped_at": timestamp,
@@ -148,6 +137,30 @@ async def jobscraper_kalibrr(url: str, headless: bool = True):
                     print(f"Gagal ekstrak card: {e}")
                     continue
 
+            print(f"📥 Terkumpul {len(results)} URL job")
+
+            # 🔄 Loop halaman detail untuk ambil job description
+            if results:
+                print(f"\n📄 Scraping {len(results)} halaman detail job...")
+                for i, job in enumerate(results, 1):
+                    try:
+                        detail_page = await context.new_page()
+                        await detail_page.goto(job["job_url"], wait_until="domcontentloaded", timeout=30000)
+                        
+                        page_html = await detail_page.content()
+                        from bs4 import BeautifulSoup
+                        soup = BeautifulSoup(page_html, "html.parser")
+                        container = soup.select_one('div.k-bg-white.k-relative.k-p-4.md\\:k-rounded-b-lg')
+                        job_desc = container.get_text(separator="\n", strip=True) if container else ""
+                        print(f"  [{i}/{len(results)}] ✅ {job['job_url']}")
+
+                        if job_desc:
+                            job["job_description"] = job_desc
+                        
+                        await detail_page.close()
+                    except Exception as e:
+                        print(f"  [{i}/{len(results)}] ⚠️ Gagal: {e}")
+                    
             await context.close()
             await browser.close()
 
@@ -157,6 +170,16 @@ async def jobscraper_kalibrr(url: str, headless: bool = True):
 
 
 if __name__ == "__main__":
-    URL = "https://kalibrr.id/id-ID/home/w/100-internship-_-ojt/te/data-engineer-intern"
+    import asyncio
 
-    asyncio.run(jobscraper_kalibrr(URL))
+    async def main():
+        keyword = "data-engineer-intern"
+        url = f"https://kalibrr.id/id-ID/home/te/{keyword}?sort=Freshness"
+
+        print(f"🧪 Test scraping Kalibrr with keyword: {keyword}")
+        results = await jobscraper_kalibrr(url, headless=False)
+        print(f"\n📊 Total results: {len(results)}")
+        if results:
+            print(f"📄 Sample: {results[0]}")
+
+    asyncio.run(main())

@@ -1,8 +1,9 @@
 # Lazy import untuk cold start cepat
-async def jobscraper_glints(url: str, headless: bool = True):
+async def jobscraper_glints(url: str, headless: bool = True, seen_ids: set = None):
     # Import HANYA saat fungsi dipanggil (lazy loading)
     from playwright.async_api import Browser, BrowserContext, async_playwright
     from src.utils.scraper_utils import (
+        normalize_url,
         create_browser,
         create_stealth_context,
         fast_human_scroll,
@@ -93,63 +94,65 @@ async def jobscraper_glints(url: str, headless: bool = True):
 
                 for card in job_cards:
                     try:
-                        # 1. Job Title
                         title_elem = card.locator('h2[class*="JobTitle"] a').first
                         job_title = (await title_elem.text_content()).strip()
-
-                        # --- INTEGRASI FILTER PUSAT ---
-                        job_title_lower = job_title.lower()
-                        if not any(word in job_title_lower for word in ALLOWED) or any(
-                            word in job_title_lower for word in BLOCKED
-                        ):
+                        
+                        # Filter IT jobs pake AI + regex
+                        from src.ai.nlp import filter_job
+                        if not filter_job(job_title):
                             continue
-
-                        # 2. URL
-                        relative_url = await title_elem.get_attribute("href")
+                        
+                        # URL - ambil dari link di card
+                        link_elem = card.locator('a[href*="/opportunities/jobs/"]').first
+                        relative_url = await link_elem.get_attribute("href")
+                        if not relative_url:
+                            continue
                         full_url = f"https://glints.com{relative_url}"
-
-                        # 3. Company Name
-                        company_elem = card.locator(
-                            '[data-cy="company_name_job_card"] a'
-                        ).first
-                        company_name = (await company_elem.text_content()).strip()
-
-                        # 4. Location
-                        location_elem = card.locator(
-                            'div[class*="LocationWrapper"]'
-                        ).first
-                        location = (await location_elem.text_content()).strip()
-
-                        # 5. Job ID (Hash dari URL)
-                        job_id = hashlib.md5(full_url.encode()).hexdigest()
-
+                        job_id = hashlib.md5(normalize_url(full_url).encode()).hexdigest()
+                        
+                        # Skip job yang sudah pernah discrap (dedup antar keyword)
+                        if seen_ids is not None:
+                            if job_id in seen_ids:
+                                print(f"  ⏭️ Skip existing job: {job_title[:30]}...")
+                                continue
+                            seen_ids.add(job_id)
+                        
                         results.append(
                             {
                                 "job_id": job_id,
                                 "job_title": job_title,
-                                "company_name": company_name,
-                                "location": location,
                                 "job_url": full_url,
                                 "platform": "glints",
                                 "scraped_at": timestamp,
                             }
                         )
-                    except Exception:
+                        
+                    except Exception as e:
+                        print(f"  ⚠️ Skip card: {e}")
                         continue
 
-                # Simpan Hasil
+                print(f"📥 Terkumpul {len(results)} URL job")
+
+                # 🔄 Loop halaman detail untuk ambil job description
                 if results:
-                    output_dir = "/tmp/output"
-                    if not os.path.exists(output_dir):
-                        os.makedirs(output_dir)
+                    print(f"\n📄 Scraping {len(results)} halaman detail job...")
+                    for i, job in enumerate(results, 1):
+                        try:
+                            detail_page = await context.new_page()
+                            await detail_page.goto(job["job_url"], wait_until="domcontentloaded", timeout=30000)
+                            
+                            # Ambil semua teks dari container utama job description
+                            desc_selector = ".Opportunitysc__Main-sc-gb4ubh-2"
+                            job_desc = await detail_page.text_content(desc_selector)
+                            print(f"  [{i}/{len(results)}] ✅ {len(job_desc or chr(48))} chars")
+                            if job_desc:
+                                job["job_description"] = job_desc.strip()
+                            print(f"  [{i}/{len(results)}] ✅ {job['job_url']}")
 
-                    file_path = os.path.join(output_dir, filename)
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        json.dump(results, f, ensure_ascii=False, indent=4)
-                    print(f"✅ Sukses! {len(results)} data disimpan di: {file_path}")
-                else:
-                    print("⚠️ Tidak ada data yang lolos filter.")
-
+                            await detail_page.close()
+                        except Exception as e:
+                            print(f"  [{i}/{len(results)}] ⚠️ Gagal: {e}")
+                        
             except Exception as e:
                 print(f"❌ Error during scraping: {type(e).__name__}: {str(e)}")
             finally:
@@ -159,3 +162,19 @@ async def jobscraper_glints(url: str, headless: bool = True):
             return results
 
     return await _scrape()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        keyword = "data+engineer+intern"
+        url = f"https://glints.com/id/opportunities/jobs/explore?keyword={keyword}&country=ID&locationName=All+Cities%2FProvinces&lowestLocationLevel=1&sortBy=LATEST"
+
+        print(f"🧪 Test scraping Glints with keyword: {keyword}")
+        results = await jobscraper_glints(url, headless=True)
+        print(f"\n📊 Total results: {len(results)}")
+        if results:
+            print(f"📄 Sample: {results[0]}")
+
+    asyncio.run(main())
