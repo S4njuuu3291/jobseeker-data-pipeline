@@ -70,6 +70,15 @@ resource "aws_glue_catalog_table" "silver_table" {
   parameters = {
     "classification" = "parquet"
     "typeOfData"     = "file"
+
+    # Partition Projection — auto-discover partitions without MSCK or Crawler
+    "projection.enabled"                      = "true"
+    "projection.ingestion_date.type"          = "date"
+    "projection.ingestion_date.range"         = "2025-01-01,NOW+1DAY"
+    "projection.ingestion_date.format"        = "yyyy-MM-dd"
+    "projection.ingestion_date.interval"      = "1"
+    "projection.ingestion_date.interval.unit" = "DAYS"
+    "storage.location.template"               = "s3://${aws_s3_bucket.silver.id}/ingestion_date=$${ingestion_date}/"
   }
 
   storage_descriptor {
@@ -93,6 +102,32 @@ resource "aws_glue_catalog_table" "silver_table" {
       type = "string"
     }
     columns {
+      name = "job_url"
+      type = "string"
+    }
+    columns {
+      name = "platform"
+      type = "string"
+    }
+    columns {
+      name = "scraped_at"
+      type = "string"
+    }
+    columns {
+      name = "keyword"
+      type = "string"
+    }
+    columns {
+      name = "job_description"
+      type = "string"
+    }
+    # AI-parsed fields
+    columns {
+      name = "role"
+      type = "string"
+    }
+
+    columns {
       name = "company_name"
       type = "string"
     }
@@ -101,21 +136,59 @@ resource "aws_glue_catalog_table" "silver_table" {
       type = "string"
     }
     columns {
-      name = "job_url"
-      type = "string"
+      name = "salary_min"
+      type = "int"
     }
-
     columns {
-      name = "platform"
-      type = "string"
+      name = "salary_max"
+      type = "int"
     }
-
     columns {
-      name = "scraped_at"
+      name = "salary_currency"
       type = "string"
     }
     columns {
-      name = "keyword"
+      name = "salary_period"
+      type = "string"
+    }
+    columns {
+      name = "job_type"
+      type = "string"
+    }
+    columns {
+      name = "seniority"
+      type = "string"
+    }
+    columns {
+      name = "work_mode"
+      type = "string"
+    }
+    columns {
+      name = "experience_min"
+      type = "int"
+    }
+    columns {
+      name = "experience_max"
+      type = "int"
+    }
+    columns {
+      name = "education"
+      type = "string"
+    }
+    columns {
+      name = "company_industry"
+      type = "string"
+    }
+    columns {
+      name = "skills"
+      type = "string"
+    }
+    columns {
+      name = "benefits"
+      type = "string"
+    }
+    columns {
+      name = "posting_date"
       type = "string"
     }
   }
