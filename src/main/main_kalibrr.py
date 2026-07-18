@@ -1,24 +1,30 @@
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Lazy import: pindahkan import berat ke dalam fungsi
 async def run_kalibrr_pipeline(keywords: list[str]):
     # Import pandas HANYA saat pipeline jalan
     import pandas as pd
     from src.scraper.jobscraper_kalibrr import jobscraper_kalibrr
-    seen_ids = set()  # 👈 Track job_id yang sudah pernah discrap
     from src.utils.data_validator import validate_job_data
     from src.utils.upload_to_s3 import upload_to_s3
+    from src.utils.manifest import read_manifest, update_manifest
 
     df_kalibrr_full = (
         pd.DataFrame()
     )  # DataFrame kosong untuk menampung semua hasil dari berbagai keyword
 
     for keyword in keywords:
-        print("--- Start Kalibrr Pipeline ---")
+        seen_ids = read_manifest("kalibrr")  # 👈 Baca manifest SATU KALI sebelum loop
+        logger.info("--- Start Kalibrr Pipeline ---")
         # url pakai: https://kalibrr.id/id-ID/home/te/data-engineer-intern?sort=Freshness
         URL = f"https://kalibrr.id/id-ID/home/te/{keyword}?sort=Freshness"
         raw_data = await jobscraper_kalibrr(URL, headless=True, seen_ids=seen_ids)
 
         if not raw_data:
-            print("❌ Gagal: Tidak ada data yang berhasil ditarik.")
+            logger.warning("❌ Gagal: Tidak ada data yang berhasil ditarik.")
             continue
 
         df_kalibrr = pd.DataFrame(raw_data)
@@ -28,6 +34,10 @@ async def run_kalibrr_pipeline(keywords: list[str]):
             [df_kalibrr_full, df_kalibrr], ignore_index=True
         )  # Gabungkan hasil ke DataFrame utama
 
+    if df_kalibrr_full.empty:
+        logger.info("✅ Tidak ada job baru. Pipeline selesai (skip validasi & upload).")
+        return 0
+
     try:
         df = pd.DataFrame(df_kalibrr_full)
         df.drop_duplicates(
@@ -35,21 +45,25 @@ async def run_kalibrr_pipeline(keywords: list[str]):
         )  # Hapus duplikat berdasarkan job_id
 
         df_validated = validate_job_data(df)
-        print(f"✅ Validasi Sukses: {len(df_validated)} baris siap dikirim.")
+        logger.info(f"✅ Validasi Sukses: {len(df_validated)} baris siap dikirim.")
 
         success = upload_to_s3(df_validated, platform="kalibrr")
         if success:
-            print("--- 🏆 Pipeline Selesai dengan Sukses ---")
+            logger.info("--- 🏆 Pipeline Selesai dengan Sukses ---")
         else:
-            print("--- ⚠️ Pipeline Selesai dengan Error di S3 ---")
+            logger.warning("--- ⚠️ Pipeline Selesai dengan Error di S3 ---")
         return len(df_validated) if success else 0
     except Exception as e:
-        print(f"❌ Pipeline Berhenti di tahap Validasi/Upload: {e}")
+        logger.error(f"❌ Pipeline Berhenti di tahap Validasi/Upload: {e}")
         raise
 
 
 if __name__ == "__main__":
-    import asyncio
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     keywords = [
         "data-engineer",
