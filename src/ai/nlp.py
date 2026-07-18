@@ -83,17 +83,17 @@ def filter_job(title: str) -> bool:
                 result = json.loads(content)
                 return result.get("is_it", False)
             else:
-                print(f"⚠️  Response kosong untuk '{title}', retry {attempt+1}/2")
+                print(f"Response kosong untuk '{title}', retry {attempt+1}/2")
                 time.sleep(0.5)
         except Exception as e:
-            print(f"⚠️  AI error untuk '{title}': {e}")
+            print(f"AI error untuk '{title}': {e}")
             time.sleep(0.5)
     
     title_lower = title.lower()
     fallback_it = any(kw in title_lower for kw in ["engineer", "developer", "architect", "scientist", "analyst"])
     if any(kw in title_lower for kw in NON_IT_INDICATORS):
         fallback_it = False
-    print(f"⚠️  Fallback untuk '{title}': {fallback_it}")
+    print(f"Fallback untuk '{title}': {fallback_it}")
     return fallback_it
 
 
@@ -103,7 +103,7 @@ def filter_job(title: str) -> bool:
 full_data_schema = {
     "job_id": str,
     "job_title": str,
-    "role": str,           # 👈 TAMBAH
+    "role": str,
     "company_name": str,
     "location": str,
     "salary_min": int,
@@ -129,8 +129,7 @@ full_data_schema = {
 
 data_schema_ai = {
     "job_title": str,          # Judul asli dari card
-    "role": str,               # 👈 TAMBAH: Peran inti (tanpa senior/junior)
-                               # Ambil dari job_title, buang kata: Senior, Junior, Lead, Staff,
+    "role": str,               # Ambil dari job_title, buang kata: Senior, Junior, Lead, Staff,
                                # Principal, Associate, Intern, Magang, L2, L1, Sr., Jr., dll.
                                # Contoh: "Senior Data Engineer" -> "Data Engineer"
                                #         "Junior Big Data Engineer" -> "Big Data Engineer"
@@ -260,7 +259,7 @@ def parse_job(
     """
     default = {
         "job_title": job_title or "Unknown",
-        "role": "Unknown",  # 👈 TAMBAH default
+        "role": "Unknown",
         "company_name": "Unknown",
         "location": "Unknown",
         "salary_min": 0,
@@ -282,7 +281,7 @@ def parse_job(
     desc_trimmed = job_description[:6000] if job_description else ""  # potong lebih panjang
 
     if not desc_trimmed.strip():
-        print(f"⚠️  Job description kosong untuk '{job_title}', pakai default")
+        print(f"Job description kosong untuk '{job_title}', pakai default")
         return default
 
     max_retries = 3
@@ -312,7 +311,7 @@ def parse_job(
             content = response.choices[0].message.content
 
             if not content or not content.strip():
-                print(f"⚠️  Response kosong untuk '{job_title}', retry {attempt+1}/{max_retries}")
+                print(f"Response kosong untuk '{job_title}', retry {attempt+1}/{max_retries}")
                 time.sleep(backoff_seconds[attempt] if attempt < len(backoff_seconds) else 3)
                 continue
 
@@ -334,19 +333,18 @@ def parse_job(
                     merged["posting_date"] = time.strftime("%Y-%m-%d")
                 return merged
             else:
-                print(f"⚠️  Gagal repair JSON untuk '{job_title}', retry {attempt+1}/{max_retries}")
+                print(f"Gagal repair JSON untuk '{job_title}', retry {attempt+1}/{max_retries}")
                 time.sleep(backoff_seconds[attempt] if attempt < len(backoff_seconds) else 3)
 
         except Exception as e:
-            print(f"⚠️  Parse AI error untuk '{job_title}': {e}, retry {attempt+1}/{max_retries}")
+            print(f"Parse AI error untuk '{job_title}': {e}, retry {attempt+1}/{max_retries}")
             time.sleep(backoff_seconds[attempt] if attempt < len(backoff_seconds) else 3)
 
-    # ⚠️ Fallback terakhir: coba ekstrak informasi penting pakai regex
-    print(f"⚠️  Fallback total untuk '{job_title}', coba regex minimal...")
+    print(f"Fallback total untuk '{job_title}', coba regex minimal...")
     fallback_result = default.copy()
     fallback_result["job_title"] = job_title or "Unknown"
     fallback_result["company_name"] = "Unknown"
-    fallback_result["role"] = normalize_role_from_title(job_title)  # 👈 TAMBAH
+    fallback_result["role"] = normalize_role_from_title(job_title)
 
     # Regex sederhana untuk gaji (contoh: Rp9.000.000 - 13.000.000)
     salary_pattern = re.compile(r'Rp\s*([\d.,]+)\s*[-–]\s*([\d.,]+)', re.I)
@@ -402,7 +400,7 @@ def parse_job(
 
 
 # ============================================
-# 🆕 FUNGSI NORMALISASI ROLE
+# FUNGSI NORMALISASI ROLE
 # ============================================
 def normalize_role_from_title(title: str) -> str:
     """
