@@ -17,7 +17,6 @@ load_dotenv()
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
-    from mypy_boto3_glue import GlueClient
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +79,11 @@ def upload_to_silver(df: pd.DataFrame) -> str:
         S3 object key yang berhasil diupload.
     """
     bucket_name = os.getenv("AWS_S3_SILVER_BUCKET_NAME")
-    db_name = os.getenv("AWS_GLUE_DATABASE_NAME", "jobscraper_db")
-    table_name = os.getenv("AWS_GLUE_SILVER_TABLE_NAME", "jobscraper_silver_table")
 
     if not bucket_name:
         raise ValueError("AWS_S3_SILVER_BUCKET_NAME is not set")
 
     s3: S3Client = boto3.client("s3")
-    glue: GlueClient = boto3.client("glue")
 
     now = now_wib()
     processed_date = now.strftime("%Y-%m-%d")
@@ -104,33 +100,6 @@ def upload_to_silver(df: pd.DataFrame) -> str:
         logger.info(f"Uploading to S3: s3://{bucket_name}/{object_key}")
         s3.put_object(Bucket=bucket_name, Key=object_key, Body=buffer.getvalue())
         logger.info(" File uploaded successfully.")
-
-        logger.info(f"Registering partition to Glue: {db_name}.{table_name}")
-
-        # Create partition if it doesn't exist yet (idempotent)
-        try:
-            glue.create_partition(
-                DatabaseName=db_name,
-                TableName=table_name,
-                PartitionInput={
-                    "Values": [processed_date],
-                    "StorageDescriptor": {
-                        "Location": f"s3://{bucket_name}/{partition_prefix}",
-                        "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
-                        "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
-                        "SerdeInfo": {
-                            "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
-                            "Parameters": {"serialization.format": "1"},
-                        },
-                    },
-                },
-            )
-            logger.info(f" Partition /{processed_date} created successfully")
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "AlreadyExistsException":
-                logger.info(f"ℹ Partition /{processed_date} already exists, skipping.")
-            else:
-                logger.warning(f" Could not create partition: {e}")
 
     except ClientError as e:
         logger.error(f" AWS ClientError: {e}")
