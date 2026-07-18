@@ -103,6 +103,7 @@ def filter_job(title: str) -> bool:
 full_data_schema = {
     "job_id": str,
     "job_title": str,
+    "role": str,           # 👈 TAMBAH
     "company_name": str,
     "location": str,
     "salary_min": int,
@@ -127,7 +128,13 @@ full_data_schema = {
 }
 
 data_schema_ai = {
-    "job_title": str,
+    "job_title": str,          # Judul asli dari card
+    "role": str,               # 👈 TAMBAH: Peran inti (tanpa senior/junior)
+                               # Ambil dari job_title, buang kata: Senior, Junior, Lead, Staff,
+                               # Principal, Associate, Intern, Magang, L2, L1, Sr., Jr., dll.
+                               # Contoh: "Senior Data Engineer" -> "Data Engineer"
+                               #         "Junior Big Data Engineer" -> "Big Data Engineer"
+                               #         "ETL Developer" -> "ETL Developer"
     "company_name": str,
     "location": str,
     "salary_min": int,
@@ -159,7 +166,15 @@ Tanggal saat ini: {current_date} (digunakan untuk posting_date jika tidak ada ta
 PERINGATAN: HANYA KEMBALIKAN JSON TANPA TEKS LAIN. PASTIKAN STRING TERTUTUP DENGAN KUTIP DUA (").
 
 {{
-    "job_title": str,          # Judul lowongan. Default: "Unknown"
+    "job_title": str,          # Judul lowongan lengkap dari card. Default: "Unknown"
+    "role": str,               # Peran inti. Ambil dari job_title, buang kata-kata senioritas:
+                               # Senior, Junior, Lead, Staff, Principal, Associate, Intern,
+                               # Magang, L1, L2, Sr., Jr., dll.
+                               # Contoh: "Senior Data Engineer" -> "Data Engineer"
+                               #         "Junior Big Data Engineer" -> "Big Data Engineer"
+                               #         "ETL Developer" -> "ETL Developer"
+                               #         "Data Analyst" -> "Data Analyst"
+                               # Default: "Unknown"
     "company_name": str,       # Nama perusahaan. Default: "Unknown"
     "location": str,           # Format: "City" (use universal name) atau "Remote". Default: "Unknown"
     "salary_min": int,         # Angka bulat. Jika tidak ada: 0
@@ -245,6 +260,7 @@ def parse_job(
     """
     default = {
         "job_title": job_title or "Unknown",
+        "role": "Unknown",  # 👈 TAMBAH default
         "company_name": "Unknown",
         "location": "Unknown",
         "salary_min": 0,
@@ -308,6 +324,12 @@ def parse_job(
                 merged = {**default, **parsed}
                 # Pastikan job_title dari argumen tetap dipakai
                 merged["job_title"] = job_title or merged.get("job_title", "Unknown")
+                
+                # 🔥 NORMALISASI ROLE: pastikan gak kosong
+                if not merged.get("role") or merged["role"] == "Unknown":
+                    # Fallback: ambil dari job_title
+                    merged["role"] = normalize_role_from_title(job_title)
+                
                 if not merged.get("posting_date"):
                     merged["posting_date"] = time.strftime("%Y-%m-%d")
                 return merged
@@ -324,6 +346,7 @@ def parse_job(
     fallback_result = default.copy()
     fallback_result["job_title"] = job_title or "Unknown"
     fallback_result["company_name"] = "Unknown"
+    fallback_result["role"] = normalize_role_from_title(job_title)  # 👈 TAMBAH
 
     # Regex sederhana untuk gaji (contoh: Rp9.000.000 - 13.000.000)
     salary_pattern = re.compile(r'Rp\s*([\d.,]+)\s*[-–]\s*([\d.,]+)', re.I)
@@ -379,11 +402,62 @@ def parse_job(
 
 
 # ============================================
+# 🆕 FUNGSI NORMALISASI ROLE
+# ============================================
+def normalize_role_from_title(title: str) -> str:
+    """
+    Ekstrak role inti dari job title (hilangkan senioritas).
+    Contoh: "Senior Data Engineer" -> "Data Engineer"
+            "Junior Big Data Engineer" -> "Big Data Engineer"
+            "ETL Developer" -> "ETL Developer"
+    """
+    if not title or title == "Unknown":
+        return "Unknown"
+    
+    # 1. Hapus kata-kata senioritas
+    seniority_words = [
+        "senior", "jr", "jr.", "junior", "mid", "middle", 
+        "lead", "staff", "principal", "associate", "assistant",
+        "intern", "magang", "l1", "l2", "l3", "sr", "sr.",
+        "entry", "fresh", "graduate", "trainee", "apprentice",
+        "manager", "executive", "vp", "director", "head"
+    ]
+    
+    # Split title, filter kata-kata senioritas
+    words = title.split()
+    role_words = []
+    for w in words:
+        # Hapus tanda baca di akhir kata
+        clean_w = re.sub(r'[^\w\s]', '', w).lower()
+        if clean_w not in seniority_words:
+            role_words.append(w)
+    
+    # Gabungkan kembali
+    role = " ".join(role_words).strip()
+    
+    # 2. Kalau hasilnya kosong, coba ambil 2 kata pertama
+    if not role or role == "Unknown":
+        words = title.split()
+        if len(words) >= 2:
+            role = " ".join(words[:2])
+        elif len(words) == 1:
+            role = words[0]
+        else:
+            role = "Unknown"
+    
+    # 3. Bersihkan dari kata-kata yang tersisa
+    role = re.sub(r'\(.*?\)', '', role).strip()
+    role = re.sub(r'[^\w\s\-]', '', role).strip()
+    
+    return role
+
+
+# ============================================
 # TEST
 # ============================================
 if __name__ == "__main__":
     job_content = ["""
-        Middle Data EngineerCeleratesRp10.000.000 - 13.000.000/BulanKomputer & Perangkat Lunak lokasi di tangsel. Data EngineerKontrak · Kerja di lokasiMinimal Sarjana (S1)3 - 5 tahun pengalamanTayang 4 hari yang laluDiperbarui 4 hari yang laluLAMAR & CHAT DI APLIKASILamarPersyaratanKerja di lokasi3 - 5 tahun pengalamanMinimal Sarjana (S1)SkillsHadoopETLSQLMicrosoft SQL ServerPythonGoogle Cloud PlatformData EngineeringBenefit KerjaLaptop ProvidedWork InsuranceHealth InsuranceTHRCareer Path Loker ini dikelola olehRRekruterOnline kemarinDeskripsi pekerjaan Middle Data Engineer CeleratesResponsibilities1. Design, develop, and maintain scalable data pipelines and ETL processes2. Manage and optimize data workflows using GCP services3. Build and maintain data warehouses and data lakes4. Collaborate with Data Analysts, Data Scientists, and Business Teams to support data needs5. Ensure data quality, integrity, and security across systems6. Monitor and troubleshoot data pipeline performance issues7. Create technical documentation related to data architecture and processesRequirements1. 3–5 years of experience as a Data Engineer.2. Hands-on experience with Python, Google Cloud Platform (GCP), BigQuery, and Big Data technologies.3. Proven experience building and maintaining scalable ETL/ELT pipelines and processing large datasets.4. Strong SQL skills with a good understanding of data modeling and data warehousing.5. Experience with Airflow/Cloud Composer and cloud-native data architectures is a plus.6. Available to join immediately or within a short notice period.Tentang PerusahaanCeleratesInformation Technology and Services51 - 200 karyawan Celerates adalah perusahaan yang bergerak dalam bidang pengembangan sumber daya manusia dan bertujuan untuk membantu talenta-talenta dalam bidang IT untuk mengakselerasikan karir mereka.Celerates menawarkan program unggulan yaitu Celerates Acceleration Program, sebuah program akselerasi karir selama 1 tahun yang terdiri dari training intensive, mentoring, case study, mini project, networking dan project placement.Lihat Lebih BanyakTips Aman Cari KerjaPemberi kerja yang benar tidak akan meminta akun Telegram, top-ups atau pembayaran dalam bentuk apapun. Jangan berikan kontak pribadi, informasi bank, maupun kartu kredit kamu.Pelajari SelengkapnyaLaporkan Lowongan IniLowongan Lainnya UntukmuData EngineerRp 9 jt-12 jtPenuh Waktu3–5 tahunMinimal Sarjana (S1)InsigniaJakarta Barat, DKI Jakarta2 hari yang laluSenior Data EngineerRp 18 jt-21 jtKontrak5–10 tahunMinimal Sarjana (S1)Insura Media SolusiJakarta Selatan, DKI Jakarta4 hari yang laluData EngineerRp 12 jt-17 jtPerusahaan PremiumHybridKontrak3–5 tahun+1PT. Cycent Inovasi KaizenJakarta Pusat, DKI Jakarta4 hari yang laluDatabase ArchitechRp 10 jt-20 jtPenuh Waktu5–10 tahunMinimal Sarjana (S1)Pt. Jaya Agung TeknologiJakarta Utara, DKI Jakarta5 hari yang laluData EngineerRp 8,5 jt-11 jtPerusahaan PremiumKontrak3–5 tahunMinimal Sarjana (S1)PT Avows TechnologiesJakarta Selatan, DKI Jakarta7 hari yang lalu
+        Middle Data EngineerCeleratesRp10.000.000 - 13.000.000/BulanKomputer & Perangkat Lunak lokasi di tangsel. Data EngineerKontrak · Kerja di lokasiMinimal Sarjana (S1)3 - 5 tahun pengalamanTayang 4 hari yang laluDiperbarui 4 hari yang laluLAMAR & CHAT DI APLIKASILamarPersyaratanKerja di lokasi3 - 5 tahun pengalamanMinimal Sarjana (S1)SkillsHadoopETLSQLMicrosoft SQL ServerPythonGoogle Cloud PlatformData EngineeringBenefit KerjaLaptop ProvidedWork InsuranceHealth InsuranceTHRCareer Path Loker ini dikelola olehRRekruterOnline kemarinDeskripsi pekerjaan Middle Data Engineer CeleratesResponsibilities1. Design, develop, and maintain scalable data pipelines and ETL processes2. Manage and optimize data workflows using GCP services3. Build and maintain data warehouses and data lakes4. Collaborate with Data Analysts, Data Scientists, and Business Teams to support data needs5. Ensure data quality, integrity, and security across systems6. Monitor and troubleshoot data pipeline performance issues7. Create technical documentation related to data architecture and processesRequirements1. 3–5 years of experience as a Data Engineer.2. Hands-on experience with Python, Google Cloud Platform (GCP), BigQuery, and Big Data technologies.3. Proven experience building and maintaining scalable ETL/ELT pipelines and processing large datasets.4. Strong SQL skills with a good understanding of data modeling and data warehousing.5. Experience with Airflow/Cloud Composer and cloud-native data architectures is a plus.6. Available to join immediately or within a short notice period.Tentang PerusahaanCeleratesInformation Technology and Services51 - 200 karyawan Celerates adalah perusahaan yang bergerak dalam bidang pengembangan sumber daya manusia dan bertujuan untuk membantu talenta-talenta dalam bidang IT untuk mengakselerasikan karir mereka.Celerates menawarkan program unggulan yaitu Celerates Acceleration Program, sebuah program akselerasi karir selama 1 tahun yang terdiri dari training intensive, mentoring, case study, mini project, networking dan project placement.Lihat Lebih BanyakTips Aman Cari KerjaPemberi kerja yang benar tidak akan meminta akun Telegram, top-ups atau pembayaran dalam bentuk apapun. Jangan berikan kontak pribadi, informasi bank, maupun kartu kredit kamu.Pelajari SelengkapnyaLaporkan Lowongan IniLowongan Lainnya UntukmuData EngineerRp 9 jt-12 jtPenuh Waktu3–5 tahunMinimal Sarjana (S1)InsigniaJakarta Barat, DKI Jakarta2 hari yang laluSenior Data EngineerRp 18 jt-21 jtKontrak5–10 tahunMinimal Sarjana (S1)Insura Media SolusiJakarta Selatan, DKI Jakarta4 hari yang laluData EngineerRp 12 jt-17 jtPerusahaan PremiumHybridKontrak3–5 tahun+1PT. Cycent Inovasi KaizenJakarta Pusat, DKI Jakarta4 hari yang laluDatabase ArchitechRp 10 jt-20 jtPenuh Waktu5–10 tahunMinimal Sarjana (S1)Pt. Jaya Agung TeknologiJakarta Utara, DKI Jakarta5 hari yang laluData EngineerRp 8,5 jt-11 jtPerusahaan PremiumKontrak3–5 tahunMinimal Sarjana (S1)PT Avows TechnologiesJakarta Selatan, DKI Jakarta7 hari yang lalu
     """,
     ]
 

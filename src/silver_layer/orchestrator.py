@@ -41,6 +41,7 @@ def transform_silver(df: pd.DataFrame) -> str:
                 job_url=row.get("job_url", ""),
                 keyword=row.get("keyword", ""),
             )
+            logger.info(f"✅ AI parse successful for row {idx}: {result['role']}")
             # Convert list fields to JSON string for parquet compatibility
             if isinstance(result.get("skills"), list):
                 result["skills"] = json.dumps(result["skills"])
@@ -50,6 +51,7 @@ def transform_silver(df: pd.DataFrame) -> str:
         except Exception as e:
             logger.warning(f"⚠️  AI parse failed for row {idx}: {e}, using defaults")
             parsed_records.append({
+                "role": None,
                 "company_name": None,
                 "location": None,
                 "salary_min": None,

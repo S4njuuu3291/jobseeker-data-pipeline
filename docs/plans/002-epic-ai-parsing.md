@@ -34,10 +34,10 @@ Upgrade pipeline dari alerting ke analytics layer dengan menambahkan AI parsing 
 - [ ] Handle partial data (AI gagal extract beberapa field → null)
 - **Story Points:** 5
 
-#### [TASK-4] Implement incremental parsing (hash-based dedup)
-- [ ] Generate SHA256 hash dari job_description
-- [ ] Simpan hash ke `_parsed_jobs/` di S3
-- [ ] Cek hash sebelum AI parsing → skip jika sudah ada
+#### [TASK-4] Implement incremental scraping and parsing (hashed job id-based dedup)
+- [ ] Generate SHA256 hash dari job_id
+- [ ] Simpan job_id seen ke manifest di S3
+- [ ] Cek hash sebelum scraping job detail dan AI parsing → skip jika sudah ada
 - **Story Points:** 3
 
 ### Phase 3: Schema & Storage
