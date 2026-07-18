@@ -55,7 +55,7 @@ def apply_location_normalization(df: pd.DataFrame) -> pd.DataFrame:
         df["location"] = "Unknown"
         return df
     
-    # 🔥 Perbaikan: paksa jadi string dulu, NaN → "Unknown"
+    #  Perbaikan: paksa jadi string dulu, NaN → "Unknown"
     df["location"] = df["location"].astype(str).fillna("Unknown")
     df["location"] = df["location"].apply(normalize_location)
     

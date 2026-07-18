@@ -16,16 +16,16 @@ async def run_glints_pipeline(keywords: list):
     df_glints_full = pd.DataFrame()
 
     for keyword in keywords:
-        seen_ids = read_manifest("glints")  # 👈 Baca manifest SATU KALI sebelum loop
-        logger.info(f"🔍 Scraping keyword: {keyword}")
+        seen_ids = read_manifest("glints")  #  Baca manifest SATU KALI sebelum loop
+        logger.info(f" Scraping keyword: {keyword}")
         URL = f"https://glints.com/id/opportunities/jobs/explore?keyword={keyword}&country=ID&locationName=All+Cities%2FProvinces&lowestLocationLevel=1&sortBy=LATEST"
         raw_data = await jobscraper_glints(URL, headless=True, seen_ids=seen_ids)
 
         if not raw_data:
-            logger.warning("❌ Gagal: Tidak ada data yang berhasil ditarik.")
+            logger.warning(" Gagal: Tidak ada data yang berhasil ditarik.")
             continue
 
-        logger.info(f" ✅ Job baru dari keyword: {len(raw_data)}")
+        logger.info(f"  Job baru dari keyword: {len(raw_data)}")
 
         df_glints = pd.DataFrame(raw_data)
         df_glints["keyword"] = keyword
@@ -33,7 +33,7 @@ async def run_glints_pipeline(keywords: list):
         df_glints_full = pd.concat([df_glints_full, df_glints], ignore_index=True)
 
     if df_glints_full.empty:
-        print("✅ Tidak ada job baru. Pipeline selesai (skip validasi & upload).")
+        print(" Tidak ada job baru. Pipeline selesai (skip validasi & upload).")
         return 0
     
     try:
@@ -43,16 +43,16 @@ async def run_glints_pipeline(keywords: list):
         )  # Hapus duplikat berdasarkan job_id
 
         df_validated = validate_job_data(df)
-        logger.info(f"✅ Validasi Sukses: {len(df_validated)} baris siap dikirim.")
+        logger.info(f" Validasi Sukses: {len(df_validated)} baris siap dikirim.")
 
         success = upload_to_s3(df_validated, platform="glints")
         if success:
-            logger.info("--- 🏆 Pipeline Selesai dengan Sukses ---")
+            logger.info("---  Pipeline Selesai dengan Sukses ---")
         else:
-            logger.warning("--- ⚠️ Pipeline Selesai dengan Error di S3 ---")
+            logger.warning("---  Pipeline Selesai dengan Error di S3 ---")
         return len(df_validated) if success else 0
     except Exception as e:
-        logger.error(f"❌ Pipeline Berhenti di tahap Validasi/Upload: {e}")
+        logger.error(f" Pipeline Berhenti di tahap Validasi/Upload: {e}")
         raise
 
 
@@ -60,8 +60,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S"
-    )
+        datefmt="%H:%M:%S")
     keywords = [
         "data+engineer",
         "etl",

@@ -103,7 +103,7 @@ def upload_to_silver(df: pd.DataFrame) -> str:
     try:
         logger.info(f"Uploading to S3: s3://{bucket_name}/{object_key}")
         s3.put_object(Bucket=bucket_name, Key=object_key, Body=buffer.getvalue())
-        logger.info("✅ File uploaded successfully.")
+        logger.info(" File uploaded successfully.")
 
         logger.info(f"Registering partition to Glue: {db_name}.{table_name}")
 
@@ -125,18 +125,18 @@ def upload_to_silver(df: pd.DataFrame) -> str:
                     },
                 },
             )
-            logger.info(f"✅ Partition /{processed_date} created successfully")
+            logger.info(f" Partition /{processed_date} created successfully")
         except ClientError as e:
             if e.response["Error"]["Code"] == "AlreadyExistsException":
-                logger.info(f"ℹ️ Partition /{processed_date} already exists, skipping.")
+                logger.info(f"ℹ Partition /{processed_date} already exists, skipping.")
             else:
-                logger.warning(f"⚠️ Could not create partition: {e}")
+                logger.warning(f" Could not create partition: {e}")
 
     except ClientError as e:
-        logger.error(f"❌ AWS ClientError: {e}")
+        logger.error(f" AWS ClientError: {e}")
         raise e
     except Exception as e:
-        logger.error(f"❌ Unexpected Error: {e}")
+        logger.error(f" Unexpected Error: {e}")
         raise e
 
     return object_key

@@ -9,7 +9,7 @@ async def run_jobstreet_pipeline(keywords: list):
     # Import HANYA saat fungsi dipanggil
     import pandas as pd
     from src.scraper.jobscraper_jobstreet import jobscraper_jobstreet
-    seen_ids = set()  # 👈 Track job_id yang sudah pernah discrap
+    seen_ids = set()  #  Track job_id yang sudah pernah discrap
     from src.utils.data_validator import validate_job_data
     from src.utils.upload_to_s3 import upload_to_s3
     from src.utils.manifest import read_manifest, update_manifest
@@ -19,7 +19,7 @@ async def run_jobstreet_pipeline(keywords: list):
     )  # DataFrame kosong untuk menampung semua hasil dari berbagai keyword
 
     for keyword in keywords:
-        seen_ids = read_manifest("jobstreet")  # 👈 Baca manifest SATU KALI sebelum loop
+        seen_ids = read_manifest("jobstreet")  #  Baca manifest SATU KALI sebelum loop
         logger.info("--- Start JobStreet Pipeline ---")
         URL = f"https://id.jobstreet.com/id/{keyword}-jobs?daterange=7"
 
@@ -37,7 +37,7 @@ async def run_jobstreet_pipeline(keywords: list):
         )  # Gabungkan hasil ke DataFrame utama
 
     if df_jobstreet_full.empty:
-        logger.info("✅ No new jobs. Pipeline completed (skip validation & upload).")
+        logger.info(" No new jobs. Pipeline completed (skip validation & upload).")
         return 0
     try:
         df = pd.DataFrame(df_jobstreet_full)

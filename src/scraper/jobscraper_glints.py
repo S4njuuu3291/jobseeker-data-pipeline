@@ -140,8 +140,7 @@ async def scrape_job_details(results: list, headless: bool = True) -> list:
                                           document.querySelector('[class*="description"]') ||
                                           document.querySelector('main') ||
                                           document.body;
-                        return container ? container.innerText : '';
-                    }""")
+                        return container ? container.innerText : '';}""")
                     if job_desc:
                         job["job_description"] = job_desc.strip()
                     logger.info(f"  [{i}/{len(results)}] \u2705 {len(job_desc or '')} chars")
@@ -200,8 +199,8 @@ if __name__ == "__main__":
             new_ids = {c["job_id"] for c in new_cards}
             seen_ids.update(new_ids)
             update_manifest("glints", seen_ids)
-            logger.info(f"\n📊 Total: {len(results)} job baru discrape & disimpan")
+            logger.info(f"\n Total: {len(results)} job baru discrape & disimpan")
         else:
-            logger.info("✅ Semua job sudah ada di manifest, tidak ada yang perlu discrape")
+            logger.info(" Semua job sudah ada di manifest, tidak ada yang perlu discrape")
 
     asyncio.run(main())

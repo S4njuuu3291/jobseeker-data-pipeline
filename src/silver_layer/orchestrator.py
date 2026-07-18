@@ -28,7 +28,7 @@ def transform_silver(df: pd.DataFrame) -> str:
     Returns: [×2]
         S3 object key of uploaded file
     """
-    logger.info("🧠 Starting AI parsing step...")
+    logger.info(" Starting AI parsing step...")
     logger.info(f"Processing {len(df)} records")
 
     # Step 1: AI parsing
@@ -41,7 +41,7 @@ def transform_silver(df: pd.DataFrame) -> str:
                 job_url=row.get("job_url", ""),
                 keyword=row.get("keyword", ""),
             )
-            logger.info(f"✅ AI parse successful for row {idx}: {result['role']}")
+            logger.info(f" AI parse successful for row {idx}: {result['role']}")
             # Convert list fields to JSON string for parquet compatibility
             if isinstance(result.get("skills"), list):
                 result["skills"] = json.dumps(result["skills"])
@@ -49,7 +49,7 @@ def transform_silver(df: pd.DataFrame) -> str:
                 result["benefits"] = json.dumps(result["benefits"])
             parsed_records.append(result)
         except Exception as e:
-            logger.warning(f"⚠️  AI parse failed for row {idx}: {e}, using defaults")
+            logger.warning(f"  AI parse failed for row {idx}: {e}, using defaults")
             parsed_records.append({
                 "role": None,
                 "company_name": None,
@@ -74,7 +74,7 @@ def transform_silver(df: pd.DataFrame) -> str:
     df_parsed = pd.DataFrame(parsed_records)
     df_parsed = df_parsed.drop(columns=["job_title"], errors="ignore")
     df = pd.concat([df, df_parsed], axis=1)
-    logger.info(f"✅ AI parsing completed for {len(parsed_records)} records")
+    logger.info(f" AI parsing completed for {len(parsed_records)} records")
 
     # Step 2: Apply transformations
     logger.info("Starting location normalization...")
@@ -94,7 +94,7 @@ def transform_silver(df: pd.DataFrame) -> str:
     # Step 4: Upload to Silver layer
     logger.info("Uploading data to Silver layer...")
     object_key = upload_to_silver(df_validated)
-    logger.info(f"✅ Silver layer pipeline completed successfully — {object_key}")
+    logger.info(f" Silver layer pipeline completed successfully — {object_key}")
 
     return object_key
 
@@ -118,7 +118,7 @@ def run_pipeline() -> dict:
         # Transform data
         object_key = transform_silver(df_bronze)
 
-        logger.info("✅ Silver layer pipeline completed successfully")
+        logger.info(" Silver layer pipeline completed successfully")
         return {
             "statusCode": 200,
             "message": "Data transformation to Silver successful",
@@ -126,7 +126,7 @@ def run_pipeline() -> dict:
         }
 
     except Exception as e:
-        logger.error(f"❌ Pipeline failed: {e}", exc_info=True)
+        logger.error(f" Pipeline failed: {e}", exc_info=True)
         return {
             "statusCode": 500,
             "message": f"Data transformation to Silver failed: {str(e)}",

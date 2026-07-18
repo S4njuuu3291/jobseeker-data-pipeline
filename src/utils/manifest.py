@@ -62,13 +62,13 @@ def read_manifest(platform: str) -> Set[str]:
         table = pq.read_table(io.BytesIO(body_bytes))
         df = table.to_pandas()
         job_ids = set(df["job_id"].dropna().tolist()) if "job_id" in df.columns else set()
-        logger.info(f"📋 Manifest {platform}: {len(job_ids)} job_id existing")
+        logger.info(f" Manifest {platform}: {len(job_ids)} job_id existing")
         return job_ids
     except s3.exceptions.NoSuchKey:
-        logger.info(f"📋 Manifest {platform} belum ada — first run, start fresh")
+        logger.info(f" Manifest {platform} belum ada — first run, start fresh")
         return set()
     except Exception as e:
-        logger.warning(f"⚠️  Gagal baca manifest {platform}: {e}, start fresh")
+        logger.warning(f"  Gagal baca manifest {platform}: {e}, start fresh")
         return set()
 
 
@@ -98,10 +98,10 @@ def update_manifest(platform: str, seen_ids: Set[str]) -> bool:
             Key=key,
             Body=buf.getvalue().to_pybytes(),
         )
-        logger.info(f"📋 Manifest {platform} tersimpan: {len(seen_ids)} job_ids")
+        logger.info(f" Manifest {platform} tersimpan: {len(seen_ids)} job_ids")
         return True
     except Exception as e:
-        logger.error(f"❌ Gagal simpan manifest {platform}: {e}")
+        logger.error(f" Gagal simpan manifest {platform}: {e}")
         return False
 
 
@@ -128,7 +128,7 @@ def filter_new_jobs(cards: list[dict], seen_ids: Set[str]) -> list[dict]:
             new_cards.append(card)
 
     if skipped:
-        logger.info(f"⏭️  Skip {skipped} job sudah ada di manifest")
+        logger.info(f"  Skip {skipped} job sudah ada di manifest")
     return new_cards
 
 
@@ -157,10 +157,10 @@ if __name__ == "__main__":
         new_ids = set(sys.argv[3:]) if len(sys.argv) > 3 else set()
         if new_ids:
             update_manifest(platform, new_ids)
-            print(f"✅ Manifest {platform} diupdate dengan {len(new_ids)} job_ids")
+            print(f" Manifest {platform} diupdate dengan {len(new_ids)} job_ids")
         else:
             update_manifest(platform, set())
-            print(f"✅ Manifest {platform} dibuat (kosong)")
+            print(f" Manifest {platform} dibuat (kosong)")
 
     elif action == "filter":
         seen = read_manifest(platform)
@@ -168,4 +168,4 @@ if __name__ == "__main__":
         baru = filter_new_jobs(cards, seen)
         print(f"Dari {len(cards)} card, {len(baru)} baru (sisanya sudah di manifest)")
         for c in baru:
-            print(f"  ✅ {c['job_id']} - {c['job_title']}")
+            print(f"   {c['job_id']} - {c['job_title']}")

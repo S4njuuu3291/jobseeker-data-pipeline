@@ -17,14 +17,14 @@ async def run_kalibrr_pipeline(keywords: list[str]):
     )  # DataFrame kosong untuk menampung semua hasil dari berbagai keyword
 
     for keyword in keywords:
-        seen_ids = read_manifest("kalibrr")  # 👈 Baca manifest SATU KALI sebelum loop
+        seen_ids = read_manifest("kalibrr")  #  Baca manifest SATU KALI sebelum loop
         logger.info("--- Start Kalibrr Pipeline ---")
         # url pakai: https://kalibrr.id/id-ID/home/te/data-engineer-intern?sort=Freshness
         URL = f"https://kalibrr.id/id-ID/home/te/{keyword}?sort=Freshness"
         raw_data = await jobscraper_kalibrr(URL, headless=True, seen_ids=seen_ids)
 
         if not raw_data:
-            logger.warning("❌ Gagal: Tidak ada data yang berhasil ditarik.")
+            logger.warning(" Gagal: Tidak ada data yang berhasil ditarik.")
             continue
 
         df_kalibrr = pd.DataFrame(raw_data)
@@ -35,7 +35,7 @@ async def run_kalibrr_pipeline(keywords: list[str]):
         )  # Gabungkan hasil ke DataFrame utama
 
     if df_kalibrr_full.empty:
-        logger.info("✅ Tidak ada job baru. Pipeline selesai (skip validasi & upload).")
+        logger.info(" Tidak ada job baru. Pipeline selesai (skip validasi & upload).")
         return 0
 
     try:
@@ -45,16 +45,16 @@ async def run_kalibrr_pipeline(keywords: list[str]):
         )  # Hapus duplikat berdasarkan job_id
 
         df_validated = validate_job_data(df)
-        logger.info(f"✅ Validasi Sukses: {len(df_validated)} baris siap dikirim.")
+        logger.info(f" Validasi Sukses: {len(df_validated)} baris siap dikirim.")
 
         success = upload_to_s3(df_validated, platform="kalibrr")
         if success:
-            logger.info("--- 🏆 Pipeline Selesai dengan Sukses ---")
+            logger.info("---  Pipeline Selesai dengan Sukses ---")
         else:
-            logger.warning("--- ⚠️ Pipeline Selesai dengan Error di S3 ---")
+            logger.warning("---  Pipeline Selesai dengan Error di S3 ---")
         return len(df_validated) if success else 0
     except Exception as e:
-        logger.error(f"❌ Pipeline Berhenti di tahap Validasi/Upload: {e}")
+        logger.error(f" Pipeline Berhenti di tahap Validasi/Upload: {e}")
         raise
 
 

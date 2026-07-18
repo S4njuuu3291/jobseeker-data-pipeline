@@ -138,7 +138,7 @@ async def scrape_job_details(results: list, headless: bool = True) -> list:
 
                     await detail_page.close()
                 except Exception as e:
-                    logger.warning(f"  [{i}/{len(results)}] ❌ Gagal: {e}")
+                    logger.warning(f"  [{i}/{len(results)}]  Gagal: {e}")
 
             return results
 
