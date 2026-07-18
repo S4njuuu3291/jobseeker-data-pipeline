@@ -58,6 +58,7 @@ JOB_SILVER_SCHEMA = DataFrameSchema(
         "keyword": Column(str),
         "job_description": Column(str, nullable=True),
         # ── AI-parsed fields ──
+        "role": Column(str, nullable=True),
         "company_name": Column(str, nullable=True),
         "location": Column(str, nullable=True),
         "salary_min": Column(int, nullable=True),
