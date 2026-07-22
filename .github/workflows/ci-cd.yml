@@ -7,6 +7,8 @@ on:
       - "src/**"
       - "terraform/**"
       - "Dockerfile"
+      - "pyproject.toml"
+      - "poetry.lock"
       - ".github/workflows/ci-cd.yml"
   workflow_dispatch:
     inputs:
