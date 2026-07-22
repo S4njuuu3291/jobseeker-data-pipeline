@@ -239,8 +239,6 @@ class TestValidateSilverSchema:
                 "education": ["unknown"] * 1000,
                 "skills": ["[]"] * 1000,
                 "benefits": ["[]"] * 1000,
-                "job_description": [""] * 1000,
-                "posting_date": ["2026-03-01"] * 1000,
 
             }
         )
@@ -260,22 +258,6 @@ class TestValidateSilverSchema:
                     "http://example.com/job?id=2",
                 ],
                 "platform": ["kalibrr", "glints"],
-                "job_description": ["desc","desc"],
-                "posting_date": ["2026-03-01","2026-03-02"],
-                "role": ["Engineer","Dev"],
-                "company_industry": ["Tech","Tech"],
-                "salary_min": [5000000,6000000],
-                "salary_max": [10000000,12000000],
-                "salary_currency": ["IDR","IDR"],
-                "salary_period": ["monthly","monthly"],
-                "job_type": ["full_time","full_time"],
-                "seniority": ["mid","mid"],
-                "work_mode": ["hybrid","on-site"],
-                "experience_min": [2,3],
-                "experience_max": [5,7],
-                "education": ["S1","S1"],
-                "skills": ["[]","[]"],
-                "benefits": ["[]","[]"],
                 "scraped_at": ["20260305_090000", "20260305_090100"],
                 "keyword": ["kw1", "kw2"],
             }
@@ -299,22 +281,6 @@ class TestValidateSilverSchema:
                 "platform": ["kalibrr", "glints", "jobstreet"],
                 "scraped_at": ["20260305_090000"] * 3,
                 "keyword": ["kw"] * 3,
-                "job_description": ["desc"] * 3,
-                "posting_date": ["2026-03-01"] * 3,
-                "role": ["Engineer"] * 3,
-                "company_industry": ["Tech"] * 3,
-                "salary_min": [5000000] * 3,
-                "salary_max": [10000000] * 3,
-                "salary_currency": ["IDR"] * 3,
-                "salary_period": ["monthly"] * 3,
-                "job_type": ["full_time"] * 3,
-                "seniority": ["mid"] * 3,
-                "work_mode": ["hybrid"] * 3,
-                "experience_min": [2] * 3,
-                "experience_max": [5] * 3,
-                "education": ["S1"] * 3,
-                "skills": ["[]"] * 3,
-                "benefits": ["[]"] * 3
             }
         )
         result = validate_silver_schema(df)
