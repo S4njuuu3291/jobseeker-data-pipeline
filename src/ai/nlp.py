@@ -9,23 +9,29 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ============================================
-# HTTP Client (abaikan proxy)
+# Lazy client (tidak init di module level)
 # ============================================
-http_client = httpx.Client(
-    trust_env=False,
-    timeout=httpx.Timeout(120.0)
-)
+_client = None
 
-client = OpenAI(
-    api_key=os.environ.get("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com",
-    http_client=http_client,
-)
+def _get_client():
+    global _client
+    if _client is None:
+        http_client = httpx.Client(
+            trust_env=False,
+            timeout=httpx.Timeout(120.0)
+        )
+        _client = OpenAI(
+            api_key=os.environ.get("DEEPSEEK_API_KEY"),
+            base_url="https://api.deepseek.com",
+            http_client=http_client,
+        )
+    return _client
+
 
 # ============================================
 # MODEL & HARGA
 # ============================================
-MODEL_NAME = "deepseek-v4-flash"  # atau "deepseek-v4-pro"
+MODEL_NAME = "deepseek-v4-flash"
 
 # 💰 HARGA PER 1M TOKENS (USD)
 MODEL_PRICES = {
@@ -283,7 +289,7 @@ def parse_job(
 
     for attempt in range(max_retries):
         try:
-            response = client.chat.completions.create(
+            response = _get_client().chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT_PARSE},
