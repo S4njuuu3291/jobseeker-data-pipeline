@@ -223,20 +223,20 @@ def lambda_handler(event, context):
     # Allow override via event payload, fallback to env var, default prod
     env = event.get("ENVIRONMENT") or os.getenv("ENVIRONMENT", "prod")
 
-    # Dev mode: kirim pesan simple aja, skip query/format/parse
-    if env == "dev":
-        blocks = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "✅ *ALL GOOD* — Slack alert Lambda berjalan dengan baik di environment *dev*."
-                }
-            }
-        ]
-        send_slack_alert(blocks, import_url())
-        logger.info("Dev mode: simple healthcheck alert sent")
-        return {"statusCode": 200, "body": "Dev healthcheck sent"}
+    # # Dev mode: kirim pesan simple aja, skip query/format/parse
+    # if env == "dev":
+    #     blocks = [
+    #         {
+    #             "type": "section",
+    #             "text": {
+    #                 "type": "mrkdwn",
+    #                 "text": "✅ *ALL GOOD* — Slack alert Lambda berjalan dengan baik di environment *dev*."
+    #             }
+    #         }
+    #     ]
+    #     send_slack_alert(blocks, import_url())
+    #     logger.info("Dev mode: simple healthcheck alert sent")
+    #     return {"statusCode": 200, "body": "Dev healthcheck sent"}
 
     ingestion_date = event.get("ingestion_date", datetime.now().strftime("%Y-%m-%d"))
     # Validasi format tanggal untuk mencegah SQL injection
