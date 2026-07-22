@@ -2,20 +2,20 @@ import os
 import re
 import json
 import time
-import httpx
-from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # ============================================
-# Lazy client (tidak init di module level)
+# Lazy imports & client
 # ============================================
 _client = None
 
 def _get_client():
     global _client
     if _client is None:
+        import httpx
+        from openai import OpenAI
         http_client = httpx.Client(
             trust_env=False,
             timeout=httpx.Timeout(120.0)
