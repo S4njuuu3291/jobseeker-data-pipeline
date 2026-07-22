@@ -24,8 +24,8 @@ class TestDataValidator:
             "location": ["Jakarta", "Bandung"],
             "job_url": ["http://example.com/job1", "http://example.com/job2"],
             "platform": ["kalibrr", "jobstreet"],
-            "scraped_at": ["2024-06-01T12:00:00Z", "2024-06-01T12:05:00Z"],
-        }
+            "job_description": "test description",
+            "scraped_at": ["2024-06-01T12:00:00Z", "2024-06-01T12:05:00Z"],            "job_description": ["Job desc 1","Job desc 2"],        }
 
         df = pd.DataFrame(data)
         validated_df = validate_job_data(df)
@@ -40,6 +40,7 @@ class TestDataValidator:
             "location": ["Jakarta"],
             "job_url": ["http://example.com/job1"],
             "platform": ["invalid_platform"],
+            "job_description": "test description",
             "scraped_at": ["2024-06-01T12:00:00Z"],
         }
 
@@ -55,6 +56,7 @@ class TestDataValidator:
             "location": ["Jakarta"],
             "job_url": ["http://example.com/job1"],
             # "platform" column is missing
+            "job_description": "test description",
             "scraped_at": ["2024-06-01T12:00:00Z"],
         }
 
@@ -70,6 +72,7 @@ class TestDataValidator:
             "location": ["Jakarta", "Bandung"],
             "job_url": ["http://example.com/job1", "http://example.com/job2"],
             "platform": ["kalibrr", "jobstreet"],
+            "job_description": "test description",
             "scraped_at": ["2024-06-01T12:00:00Z", "2024-06-01T12:05:00Z"],
         }
 
