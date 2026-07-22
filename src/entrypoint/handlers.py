@@ -34,11 +34,9 @@ def kalibrr_handler(event, context):
     keywords = _get_keywords(DEFAULT_KEYWORDS)
     try:
         result = asyncio.run(run_kalibrr_pipeline(keywords))
-        if not result:
-            raise RuntimeError("Pipeline selesai tapi 0 data berhasil diproses")
         return {
             "statusCode": 200,
-            "body": f"Kalibrr scrape sukses, {result} data berhasil diproses",
+            "body": f"Kalibrr: {result} data berhasil diproses",
         }
     except Exception as e:
         print(f"Error di Lambda Kalibrr: {e}")
@@ -54,11 +52,9 @@ def glints_handler(event, context):
     keywords = _get_keywords(DEFAULT_KEYWORDS_GLINTS)
     try:
         result = asyncio.run(run_glints_pipeline(keywords))
-        if not result:
-            raise RuntimeError("Pipeline selesai tapi 0 data berhasil diproses")
         return {
             "statusCode": 200,
-            "body": f"Glints scrape sukses, {result} data berhasil diproses",
+            "body": f"Glints: {result} data berhasil diproses",
         }
     except Exception as e:
         print(f"Error di Lambda Glints: {e}")
@@ -74,11 +70,9 @@ def jobstreet_handler(event, context):
     keywords = _get_keywords(DEFAULT_KEYWORDS)
     try:
         result = asyncio.run(run_jobstreet_pipeline(keywords))
-        if not result:
-            raise RuntimeError("Pipeline selesai tapi 0 data berhasil diproses")
         return {
             "statusCode": 200,
-            "body": f"JobStreet scrape sukses, {result} data berhasil diproses",
+            "body": f"JobStreet: {result} data berhasil diproses",
         }
     except Exception as e:
         print(f"Error di Lambda JobStreet: {e}")
