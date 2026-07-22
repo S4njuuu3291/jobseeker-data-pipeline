@@ -163,7 +163,11 @@ async def jobscraper_kalibrr(url: str, headless: bool = True, seen_ids: set = No
     import asyncio
     from src.utils.manifest import filter_new_jobs, update_manifest
 
-    results = await collect_job_cards(url, headless=headless)
+    try:
+        results = await collect_job_cards(url, headless=headless)
+    except Exception as e:
+        logger.error(f"collect_job_cards gagal: {e}")
+        return []
 
     if seen_ids is not None:
         results = filter_new_jobs(results, seen_ids)
