@@ -191,6 +191,55 @@ resource "aws_glue_catalog_table" "silver_table" {
       name = "posting_date"
       type = "string"
     }
+    # API metadata (dari AI parsing)
+    columns {
+      name = "api_model"
+      type = "string"
+    }
+    columns {
+      name = "api_usage_total_tokens"
+      type = "int"
+    }
+    columns {
+      name = "api_usage_prompt_tokens"
+      type = "int"
+    }
+    columns {
+      name = "api_usage_completion_tokens"
+      type = "int"
+    }
+    columns {
+      name = "api_cache_hit_tokens"
+      type = "int"
+    }
+    columns {
+      name = "api_cache_miss_tokens"
+      type = "int"
+    }
+    columns {
+      name = "api_finish_reason"
+      type = "string"
+    }
+    columns {
+      name = "api_cost_usd"
+      type = "double"
+    }
+    columns {
+      name = "api_cost_idr"
+      type = "double"
+    }
+    columns {
+      name = "api_attempt"
+      type = "int"
+    }
+    columns {
+      name = "parsed_success"
+      type = "boolean"
+    }
+    columns {
+      name = "parsed_at"
+      type = "string"
+    }
   }
 
   partition_keys {
