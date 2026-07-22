@@ -26,26 +26,23 @@ def upload_to_s3(df: pd.DataFrame, platform: str):
     # check if already exist object in ingestion_date, if exist, replace with new file, if not exist, create new file
 
     existing_objects = s3.list_objects_v2(
-        Bucket=bucket_name, Prefix=f"platform={platform}/ingestion_date={date_str}/"
-    )
+        Bucket=bucket_name, Prefix=f"platform={platform}/ingestion_date={date_str}/")
     if existing_objects.get("KeyCount", 0) > 0:
         for obj in existing_objects["Contents"]:
             s3.delete_object(Bucket=bucket_name, Key=obj["Key"])
         print(
-            f"🧹 Menghapus {existing_objects['KeyCount']} file lama di folder ingestion_date={date_str}"
-        )
+            f" Menghapus {existing_objects['KeyCount']} file lama di folder ingestion_date={date_str}")
 
     file_key = (
-        f"platform={platform}/ingestion_date={date_str}/{platform}_{timestamp}.parquet"
-    )
+        f"platform={platform}/ingestion_date={date_str}/{platform}_{timestamp}.parquet")
 
     parquet_buffer = io.BytesIO()
     df.to_parquet(parquet_buffer, engine="pyarrow", index=False)
 
     try:
         s3.put_object(Bucket=bucket_name, Key=file_key, Body=parquet_buffer.getvalue())
-        print(f"🚀 Data mendarat di: s3://{bucket_name}/{file_key}")
+        print(f" Data mendarat di: s3://{bucket_name}/{file_key}")
         return True
     except Exception as e:
-        print(f"❌ Gagal upload ke S3: {e}")
+        print(f" Gagal upload ke S3: {e}")
         return False

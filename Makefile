@@ -58,3 +58,17 @@ docker-build:
 docker-up:
 	docker compose up -d
 
+tf-dev-init:
+	@echo "🔧 Initializing Terraform for dev environment..."
+	cd terraform/envs/dev && terraform init
+	@echo "✅ Terraform initialization complete!"
+
+tf-dev-plan:
+	@echo "🔍 Terraform plan for dev environment..."
+	cd terraform/envs/dev && terraform plan
+	@echo "✅ Terraform plan complete!"
+
+tf-dev-apply:
+	@echo "🚀 Applying Terraform for dev environment..."
+	cd terraform/envs/dev && terraform apply -auto-approve
+	@echo "✅ Terraform apply complete!"

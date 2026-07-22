@@ -12,19 +12,16 @@ def _get_keywords(default: list[str]) -> list[str]:
 
 
 DEFAULT_KEYWORDS = [
-    "data-engineer-intern",
-    "etl-developer-intern",
-    "big-data-intern",
-    "bi-engineer-intern",
+    "data-engineer",
+    "etl",
+    "big-data-engineer",
 ]
 
 DEFAULT_KEYWORDS_GLINTS = [
-    "data+engineer+intern",
-    "etl+developer+intern",
-    "big+data+intern",
-    "bi+engineer+intern",
+    "data+engineer",
+    "etl",
+    "big+data+engineer",
 ]
-
 
 # Handler untuk Kalibrr
 def kalibrr_handler(event, context):

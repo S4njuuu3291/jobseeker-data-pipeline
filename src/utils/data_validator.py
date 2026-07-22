@@ -7,13 +7,12 @@ job_schema = DataFrameSchema(
     {
         "job_id": Column(str, unique=True),
         "job_title": Column(str),
-        "company_name": Column(str),
-        "location": Column(str),
         "job_url": Column(str),
         "platform": Column(
-            str, Check.isin(["kalibrr", "jobstreet", "glints", "dealls", "karir.com"])
+            str, Check.isin(["kalibrr", "jobstreet", "glints"])
         ),
         "scraped_at": Column(str),
+        "job_description": Column(str, nullable=True),
     },
     strict=False,
     coerce=True,

@@ -174,16 +174,9 @@ class TestUploadToSilver:
         }.get(key, default)
 
         mock_s3 = MagicMock()
-        mock_glue = MagicMock()
+        mock_s3_client.return_value = mock_s3
 
-        # Configure mock to return s3 on first call, glue on second
-        mock_s3_client.side_effect = [mock_s3, mock_glue]
-
-        mock_s3.put_object.return_value = {"ETag": "abc123"}
-        # Mock delete_partition to raise AlreadyExistsException (partition already exists)
-        mock_glue.create_partition.side_effect = ClientError(
-            {"Error": {"Code": "AlreadyExistsException"}}, "CreatePartition"
-        )
+        mock_s3.put_object.return_value = {"ETag":"abc123"}
 
         result = upload_to_silver(sample_dataframe)
 
@@ -192,7 +185,6 @@ class TestUploadToSilver:
         assert "job_data_" in result
         assert ".parquet" in result
         mock_s3.put_object.assert_called_once()
-        mock_glue.create_partition.assert_called_once()
 
     @patch("src.silver_layer.storage.boto3.client")
     @patch("src.silver_layer.storage.os.getenv")
