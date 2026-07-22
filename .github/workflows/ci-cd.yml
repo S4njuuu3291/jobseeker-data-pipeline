@@ -5,6 +5,7 @@ on:
     branches: [main, dev]
     paths:
       - "src/**"
+      - "tests/**"
       - "terraform/**"
       - "Dockerfile"
       - "pyproject.toml"
