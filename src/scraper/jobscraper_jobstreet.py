@@ -60,8 +60,8 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     title_elem = card.locator('[data-automation="jobTitle"]').first
                     job_title = (await title_elem.text_content()).strip()
 
-                    from src.ai.nlp import filter_job
-                    if not filter_job(job_title):
+                    from src.utils.manifest import is_relevant_title
+                    if not is_relevant_title(job_title):
                         continue
 
                     relative_url = await title_elem.get_attribute("href")
@@ -86,16 +86,10 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
         finally:
             await browser.close()
 
-
 async def scrape_job_details(results: list, headless: bool = True) -> list:
-    """Scrape halaman detail untuk ambil job description (plus metadata).
+    """Scrape seluruh teks mentah dari halaman detail job (termasuk metadata,
 
-    Args:
-        results: List dari collect_job_cards()
-        headless: Mode headless browser
-
-    Returns:
-        List yang sama dengan tambahan field "job_description"
+    persyaratan, pertanyaan perusahaan, hingga profil perusahaan).
     """
     if not results:
         return results
@@ -103,48 +97,71 @@ async def scrape_job_details(results: list, headless: bool = True) -> list:
     from playwright.async_api import Browser, async_playwright
     from src.utils.scraper_utils import create_browser, create_stealth_context
 
-    async def safe_text(detail_page, selector, timeout=3000):
-        try:
-            element = await detail_page.wait_for_selector(selector, timeout=timeout)
-            return (await element.text_content()).strip() if element else ""
-        except Exception:
-            return ""
-
     async with async_playwright() as p:
         browser: Browser = await create_browser(p, headless=headless)
         try:
             context = await create_stealth_context(browser)
 
-            logger.info(f"\n\U0001f4c4 Scraping {len(results)} halaman detail job...")
+            logger.info(f"\n📄 Scraping {len(results)} halaman detail job...")
             for i, job in enumerate(results, 1):
+                detail_page = None
                 try:
                     detail_page = await context.new_page()
-                    await detail_page.goto(job["job_url"], wait_until="domcontentloaded", timeout=30000)
+                    await detail_page.goto(
+                        job["job_url"],
+                        wait_until="domcontentloaded",
+                        timeout=30000,
+                    )
 
-                    desc = await safe_text(detail_page, '[data-automation="jobAdDetails"]', 5000)
-                    title = await safe_text(detail_page, '[data-automation="job-detail-title"]', 2000)
-                    company = await safe_text(detail_page, '[data-automation="advertiser-name"]', 2000)
-                    location = await safe_text(detail_page, '[data-automation="job-detail-location"]', 2000)
-                    salary = await safe_text(detail_page, '[data-automation="job-detail-salary"]', 2000)
-                    work_type = await safe_text(detail_page, '[data-automation="job-detail-work-type"]', 2000)
+                    # Ambil seluruh container utama dengan naik dari elemen title
+                    raw_full_text = await detail_page.evaluate("""() => {
+                        const titleEl = document.querySelector('[data-automation="job-detail-title"]');
+                        let container = titleEl ? titleEl.closest('main') : null;
 
-                    full_text = f"{title or ''}\n{company or ''}\n{location or ''}\n{salary or ''}\n{work_type or ''}\n\n{desc or ''}"
-                    job["job_description"] = full_text.strip() if full_text.strip() else None
+                        // Fallback jika tag <main> tidak ada: panjat parent DOM sampai nemu container lengkap
+                        if (!container && titleEl) {
+                            let curr = titleEl;
+                            while (curr.parentElement && curr.parentElement !== document.body) {
+                                curr = curr.parentElement;
+                                if (curr.querySelector('[data-automation="jobAdDetails"]')) {
+                                    container = curr;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!container) {
+                            container = document.querySelector('main') || document.body;
+                        }
+
+                        return container ? container.innerText.trim() : '';
+                    }""")
+
+                    job["job_description"] = (
+                        raw_full_text if raw_full_text else None
+                    )
 
                     if job.get("job_description"):
-                        logger.info(f"  [{i}/{len(results)}] \u2705 {job['job_url']}")
+                        logger.info(
+                            f"  [{i}/{len(results)}] ✅ {len(job['job_description'])} chars - {job['job_url']}"
+                        )
                     else:
-                        logger.warning(f"  [{i}/{len(results)}] \u26a0\ufe0f Kosong - {job['job_title'][:30]}...")
+                        logger.warning(
+                            f"  [{i}/{len(results)}] ⚠️ Kosong - {job.get('job_title', '')[:30]}..."
+                        )
 
-                    await detail_page.close()
                 except Exception as e:
-                    logger.warning(f"  [{i}/{len(results)}]  Gagal: {e}")
-
+                    logger.warning(
+                        f"  [{i}/{len(results)}] ⚠️ Gagal: {e}"
+                    )
+                finally:
+                    if detail_page:
+                        await detail_page.close()
+                
             return results
 
         finally:
             await browser.close()
-
 
 async def jobscraper_jobstreet(url: str, headless: bool = True, seen_ids: set = None) -> list:
     """Main orchestrator: collect cards -> filter manifest -> scrape details."""

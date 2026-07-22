@@ -87,8 +87,8 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     title_elem = card.locator('h2[class*="JobTitle"] a').first
                     job_title = (await title_elem.text_content()).strip()
 
-                    from src.ai.nlp import filter_job
-                    if not filter_job(job_title):
+                    from src.utils.manifest import is_relevant_title
+                    if not is_relevant_title(job_title):
                         continue
 
                     link_elem = card.locator('a[href*="/opportunities/jobs/"]').first
@@ -115,14 +115,16 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
         finally:
             await browser.close()
 
-
 async def scrape_job_details(results: list, headless: bool = True) -> list:
-    """Scrape halaman detail untuk ambil job description."""
-    if not results:
-        return results
-
     from playwright.async_api import Browser, async_playwright
     from src.utils.scraper_utils import create_browser, create_stealth_context
+
+    """Scrape halaman detail Glints untuk mengambil informasi lengkap pekerjaan,
+
+    persyaratan, hingga profil perusahaan.
+    """
+    if not results:
+        return results
 
     async with async_playwright() as p:
         browser: Browser = await create_browser(p, headless=headless)
@@ -130,28 +132,35 @@ async def scrape_job_details(results: list, headless: bool = True) -> list:
             context = await create_stealth_context(browser)
             detail_page = await context.new_page()
 
-            logger.info(f"\n\U0001f4c4 Scraping {len(results)} halaman detail job...")
+            logger.info(f"\n📄 Scraping {len(results)} halaman detail job...")
             for i, job in enumerate(results, 1):
                 try:
-                    await detail_page.goto(job["job_url"], wait_until="domcontentloaded", timeout=30000)
-                    job_desc = await detail_page.evaluate("""() => {
-                        const container = document.querySelector('[class*="JobDescription"]') ||
-                                          document.querySelector('[class*="job-description"]') ||
-                                          document.querySelector('[class*="description"]') ||
-                                          document.querySelector('main') ||
-                                          document.body;
-                        return container ? container.innerText : '';}""")
-                    if job_desc:
-                        job["job_description"] = job_desc.strip()
-                    logger.info(f"  [{i}/{len(results)}] \u2705 {len(job_desc or '')} chars")
+                    await detail_page.goto(
+                        job["job_url"],
+                        wait_until="domcontentloaded",
+                        timeout=30000,
+                    )
+
+                    # Ambil satu blok teks mentah murni tanpa parsing
+                    raw_text = await detail_page.evaluate("""() => {
+                        const container = document.querySelector('main') || document.body;
+                        return container ? container.innerText.trim() : '';
+                    }""")
+
+                    job["job_description"] = raw_text
+
+                    logger.info(
+                        f"  [{i}/{len(results)}] ✅ Got raw text ({len(raw_text)} chars)"
+                    )
                 except Exception as e:
-                    logger.warning(f"  [{i}/{len(results)}] \u26a0\ufe0f Gagal: {e}")
+                    logger.warning(
+                        f"  [{i}/{len(results)}] ⚠️ Gagal: {e}"
+                    )
 
             return results
 
         finally:
             await browser.close()
-
 
 async def jobscraper_glints(url: str, headless: bool = True, seen_ids: set = None) -> list:
     """Main orchestrator: collect cards -> filter manifest -> scrape details."""

@@ -25,14 +25,34 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 
+from src.utils.keywords import ALLOWED, BLOCKED
+
 logger = logging.getLogger(__name__)
 
 MANIFEST_KEY = "manifests/{platform}/job_ids.parquet"
 
 
+def is_relevant_title(title: str) -> bool:
+    """Cek apakah job title relevan (data/tech) berdasarkan allowed & blocked keywords."""
+    if not title:
+        return False
+    t = title.lower()
+    return any(kw in t for kw in ALLOWED) and not any(kw in t for kw in BLOCKED)
+
+
 def _get_bucket_name() -> str:
-    """Get Bronze bucket name from environment."""
+    """Get Bronze bucket name from environment or .env file."""
     bucket = os.getenv("AWS_S3_BUCKET_NAME")
+    if bucket:
+        return bucket
+
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        bucket = os.getenv("AWS_S3_BUCKET_NAME")
+    except ImportError:
+        pass
+
     if not bucket:
         raise ValueError("AWS_S3_BUCKET_NAME environment variable not set")
     return bucket
@@ -132,6 +152,34 @@ def filter_new_jobs(cards: list[dict], seen_ids: Set[str]) -> list[dict]:
     return new_cards
 
 
+def delete_manifest(platform: str) -> bool:
+    """Hapus file manifest Parquet dari S3 untuk platform tertentu.
+
+    Args:
+        platform: Nama platform (glints, kalibrr, jobstreet)
+
+    Returns:
+        True jika berhasil dihapus, False jika gagal atau tidak ada.
+    """
+    s3 = boto3.client("s3")
+    bucket = _get_bucket_name()
+    key = _manifest_key(platform)
+
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+    except s3.exceptions.ClientError:
+        logger.info(f" Manifest {platform} sudah tidak ada — nothing to delete")
+        return False
+
+    try:
+        s3.delete_object(Bucket=bucket, Key=key)
+        logger.info(f" Manifest {platform} berhasil dihapus")
+        return True
+    except Exception as e:
+        logger.error(f" Gagal hapus manifest {platform}: {e}")
+        return False
+
+
 if __name__ == "__main__":
     import sys
 
@@ -142,6 +190,7 @@ if __name__ == "__main__":
         print("  python manifest.py <platform> read")
         print("  python manifest.py <platform> update [job_id ...]")
         print("  python manifest.py <platform> filter <job_id1> <job_id2> ...")
+        print("  python manifest.py <platform> delete")
         sys.exit(1)
 
     platform = sys.argv[1]
@@ -169,3 +218,13 @@ if __name__ == "__main__":
         print(f"Dari {len(cards)} card, {len(baru)} baru (sisanya sudah di manifest)")
         for c in baru:
             print(f"   {c['job_id']} - {c['job_title']}")
+
+    elif action == "delete":
+        sure = input(f" Hapus manifest {platform}? (y/N): ").strip().lower()
+        if sure == "y":
+            delete_manifest(platform)
+        else:
+            print(" Dibatalkan")
+
+    else:
+        print(f" Action tidak dikenal: {action}")

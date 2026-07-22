@@ -84,8 +84,8 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     title_elem = card.locator('h2 a[itemprop="name"]').first
                     job_title = (await title_elem.text_content()).strip()
 
-                    from src.ai.nlp import filter_job
-                    if not filter_job(job_title):
+                    from src.utils.manifest import is_relevant_title
+                    if not is_relevant_title(job_title):
                         continue
 
                     relative_url = await title_elem.get_attribute("href")
@@ -146,7 +146,7 @@ async def scrape_job_details(results: list, headless: bool = True) -> list:
                     job_desc = container.get_text(separator="\n", strip=True) if container else ""
 
                     job["job_description"] = job_desc or None
-                    logger.info(f"  [{i}/{len(results)}] \u2705 {job['job_url']}")
+                    logger.info(f"  [{i}/{len(results)}] ✅ {job['job_url']}")
 
                     await detail_page.close()
                 except Exception as e:
