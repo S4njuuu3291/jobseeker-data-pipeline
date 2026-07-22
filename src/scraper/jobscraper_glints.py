@@ -55,18 +55,37 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
             await page.route("**/*", route_handler)
             timestamp = now_wib().strftime("%Y%m%d_%H%M%S")
 
-            @retry(
-                stop=stop_after_attempt(3),
-                wait=wait_exponential(multiplier=1, min=2, max=10),
-                retry=retry_if_exception_type(Exception),
-            )
-            async def navigate_with_retry():
-                logger.info(f"Navigating to URL: {url}")
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                if "not-found" in page.url:
-                    raise Exception("Page not found")
+            nav_state = {"page": page, "context": context, "attempt": 0}
 
-            await navigate_with_retry()
+            async def navigate_safe():
+                nav_state["attempt"] += 1
+                attempt = nav_state["attempt"]
+                try:
+                    logger.info(f"Navigating to URL (attempt {attempt}): {url}")
+                    await nav_state["page"].goto(url, wait_until="domcontentloaded", timeout=30000)
+                    if "not-found" in nav_state["page"].url:
+                        raise Exception("Page not found")
+                    return True
+                except Exception as e:
+                    logger.warning(f"  Navigate attempt {attempt} failed: {e}")
+                    if attempt < 3:
+                        # Recreate page jika page sudah closed
+                        try:
+                            await nav_state["page"].close()
+                        except:
+                            pass
+                        nav_state["page"] = await nav_state["context"].new_page()
+                        await nav_state["page"].route("**/*", route_handler)
+                        await asyncio.sleep(2)
+                        return await navigate_safe()
+                    raise
+
+            await navigate_safe()
+            page = nav_state["page"]
+
+            logger.info("Waiting 5 seconds for hydration...")
+            await page.wait_for_timeout(5000)
+
             logger.info("Waiting 5 seconds for hydration...")
             await page.wait_for_timeout(5000)
 
