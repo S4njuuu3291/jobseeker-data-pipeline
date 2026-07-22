@@ -55,36 +55,38 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
             await page.route("**/*", route_handler)
             timestamp = now_wib().strftime("%Y%m%d_%H%M%S")
 
-            nav_state = {"page": page, "context": context, "attempt": 0}
+            nav_state = {"browser": browser, "context": context, "page": page, "attempt": 0}
 
             async def navigate_safe():
                 nav_state["attempt"] += 1
                 attempt = nav_state["attempt"]
                 try:
-                    logger.info(f"Navigating to URL (attempt {attempt}): {url}")
+                    logger.info(f"  Navigate attempt {attempt}: {url}")
                     await nav_state["page"].goto(url, wait_until="domcontentloaded", timeout=30000)
                     if "not-found" in nav_state["page"].url:
                         raise Exception("Page not found")
                     return True
                 except Exception as e:
                     logger.warning(f"  Navigate attempt {attempt} failed: {e}")
-                    if attempt < 3:
-                        # Recreate page jika page sudah closed
-                        try:
-                            await nav_state["page"].close()
-                        except:
-                            pass
-                        nav_state["page"] = await nav_state["context"].new_page()
-                        await nav_state["page"].route("**/*", route_handler)
-                        await asyncio.sleep(2)
-                        return await navigate_safe()
-                    raise
+                    if attempt >= 3:
+                        raise
+                    await asyncio.sleep(2)
+                    # Recreate context & page jika closed
+                    try:
+                        await nav_state["page"].close()
+                    except:
+                        pass
+                    try:
+                        await nav_state["context"].close()
+                    except:
+                        pass
+                    nav_state["context"] = await create_stealth_context(nav_state["browser"])
+                    nav_state["page"] = await nav_state["context"].new_page()
+                    await nav_state["page"].route("**/*", route_handler)
+                    return await navigate_safe()
 
             await navigate_safe()
             page = nav_state["page"]
-
-            logger.info("Waiting 5 seconds for hydration...")
-            await page.wait_for_timeout(5000)
 
             logger.info("Waiting 5 seconds for hydration...")
             await page.wait_for_timeout(5000)
