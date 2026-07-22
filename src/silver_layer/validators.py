@@ -22,8 +22,8 @@ def validate_silver_schema(df: pd.DataFrame) -> pd.DataFrame:
     """
     try:
         df_validated = JOB_SILVER_SCHEMA.validate(df)
-        logger.info("✅ Data validation against silver schema successful.")
+        logger.info(" Data validation against silver schema successful.")
         return df_validated
     except pa.errors.SchemaError as e:
-        logger.error(f"❌ Data validation against silver schema failed: {e}")
+        logger.error(f" Data validation against silver schema failed: {e}")
         raise e

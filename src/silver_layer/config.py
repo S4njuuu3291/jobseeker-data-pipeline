@@ -52,11 +52,30 @@ JOB_SILVER_SCHEMA = DataFrameSchema(
     {
         "job_id": Column(str, unique=True),
         "job_title": Column(str),
-        "company_name": Column(str),
-        "location": Column(str),
         "job_url": Column(str),
         "platform": Column(str, Check.isin(get_list_platforms())),
         "scraped_at": Column(str),
         "keyword": Column(str),
-    }
+        "job_description": Column(str, nullable=True),
+        # ── AI-parsed fields ──
+        "role": Column(str, nullable=True),
+        "company_name": Column(str, nullable=True),
+        "location": Column(str, nullable=True),
+        "salary_min": Column(int, nullable=True),
+        "salary_max": Column(int, nullable=True),
+        "salary_currency": Column(str, nullable=True),
+        "salary_period": Column(str, nullable=True),
+        "job_type": Column(str, nullable=True),
+        "seniority": Column(str, nullable=True),
+        "work_mode": Column(str, nullable=True),
+        "experience_min": Column(int, nullable=True),
+        "experience_max": Column(int, nullable=True),
+        "education": Column(str, nullable=True),
+        "company_industry": Column(str, nullable=True),
+        "skills": Column(str, nullable=True),        # JSON array as string
+        "benefits": Column(str, nullable=True),       # JSON array as string
+        "posting_date": Column(str, nullable=True),
+    },
+    strict=False,
+    coerce=True,
 )
