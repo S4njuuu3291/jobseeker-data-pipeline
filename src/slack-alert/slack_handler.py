@@ -183,34 +183,48 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
 
     blocks.append({"type": "divider"})
 
-
-    # Compact job list — semua job dalam text block
-    job_lines = []
-    for idx, job in enumerate(parsed_data, 1):
+    # Job listings (max 15 to avoid Slack block limit)
+    MAX_JOBS_IN_MSG = 15
+    for idx, job in enumerate(parsed_data[:MAX_JOBS_IN_MSG], 1):
         platform = job.get("platform", "unknown").lower()
-        config = platform_config.get(platform, {"emoji":"💼","color":"#5C5C5C"})
-        kw = f" 🔑{job.get('keyword','')}" if job.get("keyword") else ""
+        config = platform_config.get(platform, {"emoji": "💼", "color": "#5C5C5C"})
+
         short_url = shorten_url(job["job_url"])
-        line = f"{idx}. <{short_url}|*{job['job_title']}*> {config['emoji']} {job['company_name']} 📍{job['location']}{kw}"
-        job_lines.append(line)
 
-    chunks = []
-    chunk = ""
-    for line in job_lines:
-        if len(chunk) + len(line) + 1 > 2800:
-            chunks.append(chunk)
-            chunk = line
-        else:
-            chunk += "\n" + line if chunk else line
-    if chunk:
-        chunks.append(chunk)
+        # Job card with context
+        keyword_label = f" • 🔑 {job.get('keyword', '-')}" if job.get("keyword") else ""
+        job_text = (
+            f"*{idx}. {job['job_title']}*\n"
+            f"{config['emoji']} {job['company_name']} • 📍 {job['location']}"
+            f"{keyword_label}"
+        )
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": job_text,
+                },
+                "accessory": {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Open", "emoji": True},
+                    "url": short_url,
+                    "style": "primary",
+                },
+            }
+        )
 
-    for c in chunks:
+        if idx < len(parsed_data):
+            blocks.append({"type": "divider"})
+    remaining = len(parsed_data) - MAX_JOBS_IN_MSG
+    if remaining > 0:
         blocks.append({
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": c}
+            "type": "context",
+            "elements": [{
+                "type": "mrkdwn",
+                "text": f"💡 *+{remaining} more job{'s' if remaining > 1 else ''} not shown*"
+            }]
         })
-
     return blocks
 
 
