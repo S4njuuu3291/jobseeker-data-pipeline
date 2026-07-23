@@ -262,7 +262,6 @@ def lambda_handler(event, context):
 
     return {"statusCode": 200, "body": "Slack message sent successfully!"}
 
-
 if __name__ == "__main__":
     today = datetime.now().strftime("%Y-%m-%d")
     lambda_handler({"ingestion_date": today}, {})

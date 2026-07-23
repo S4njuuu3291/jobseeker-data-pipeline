@@ -11,7 +11,7 @@ async def test_glints():
     results = [{
         "job_id": "test-001",
         "job_title": "Data Engineer Intern",
-        "job_url": "https://glints.com/id/opportunities/jobs/data-engineer/a0bdb6e2-8162-4810-8248-d76b54cf4fad?traceInfo=fc8003d4-237a-42bf-ad11-e7fd70e8a6ee",
+        "job_url": "https://glints.com/id/opportunities/jobs/it-support-engineer/334e3787-771f-44ff-add8-1814c3bd72f1?traceInfo=208b15a1-8ddd-47a5-9199-cc95a8790272",
     }]
     enriched = await glints_detail(results, headless=False)
     print(f"\nGlints: {enriched}")
@@ -36,4 +36,4 @@ async def test_kalibrr():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_jobstreet())
+    asyncio.run(test_glints())
