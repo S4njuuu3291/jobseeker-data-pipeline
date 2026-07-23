@@ -18,10 +18,9 @@ resource "aws_ssm_parameter" "slack_webhook_url" {
 }
 
 resource "aws_ssm_parameter" "deepseek_api_key" {
-  name     = "/jobscraper/deepseek/api_key${local.env_suffix}"
-  type     = "SecureString"
-  value    = "placeholder"
-  overwrite = true
+  name  = "/jobscraper/deepseek/api_key${local.env_suffix}"
+  type  = "SecureString"
+  value = "placeholder"
   lifecycle { ignore_changes = [value] }
   tags = {
     Environment = var.env
