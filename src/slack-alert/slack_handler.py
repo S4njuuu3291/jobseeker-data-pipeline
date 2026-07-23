@@ -183,8 +183,9 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
 
     blocks.append({"type": "divider"})
 
-    # Job listings
-    for idx, job in enumerate(parsed_data, 1):
+    # Job listings (max 15 to avoid Slack block limit)
+    MAX_JOBS_IN_MSG = 15
+    for idx, job in enumerate(parsed_data[:MAX_JOBS_IN_MSG], 1):
         platform = job.get("platform", "unknown").lower()
         config = platform_config.get(platform, {"emoji": "💼", "color": "#5C5C5C"})
 
@@ -215,7 +216,15 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
 
         if idx < len(parsed_data):
             blocks.append({"type": "divider"})
-
+    remaining = len(parsed_data) - MAX_JOBS_IN_MSG
+    if remaining > 0:
+        blocks.append({
+            "type": "context",
+            "elements": [{
+                "type": "mrkdwn",
+                "text": f"💡 *+{remaining} more job{'s' if remaining > 1 else ''} not shown*"
+            }]
+        })
     return blocks
 
 
