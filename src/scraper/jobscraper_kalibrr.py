@@ -174,6 +174,9 @@ async def jobscraper_kalibrr(url: str, headless: bool = True, seen_ids: set = No
 
     if results:
         results = await scrape_job_details(results, headless=headless)
+        # Pastikan job_description ada walau scrape gagal per-row
+        for j in results:
+            j.setdefault("job_description", "")
         new_ids = {j["job_id"] for j in results}
         seen_ids.update(new_ids)
         update_manifest("kalibrr", seen_ids)
