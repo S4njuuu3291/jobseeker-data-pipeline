@@ -216,15 +216,7 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
 
         if idx < len(parsed_data):
             blocks.append({"type": "divider"})
-    remaining = len(parsed_data) - MAX_JOBS_IN_MSG
-    if remaining > 0:
-        blocks.append({
-            "type": "context",
-            "elements": [{
-                "type": "mrkdwn",
-                "text": f"💡 *+{remaining} more job{'s' if remaining > 1 else ''} not shown*"
-            }]
-        })
+
     return blocks
 
 
