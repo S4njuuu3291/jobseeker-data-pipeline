@@ -177,6 +177,7 @@ resource "aws_lambda_function" "silver_layer" {
       AWS_S3_SILVER_BUCKET_NAME  = aws_s3_bucket.silver.id
       AWS_GLUE_DATABASE_NAME     = "jobscraper_db${local.env_suffix_underscore}"
       AWS_GLUE_SILVER_TABLE_NAME = "jobscraper_silver_table${local.env_suffix_underscore}"
+      DEEPSEEK_API_KEY           = data.aws_ssm_parameter.deepseek_api_key.value
     }
   }
 
