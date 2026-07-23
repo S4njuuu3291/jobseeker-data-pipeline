@@ -1,6 +1,6 @@
 ﻿# Job Data Pipeline
 
-Fully automated ETL pipeline that scrapes job postings from multiple platforms, transforms data through medallion architecture, and sends real-time Slack alerts.
+Fully automated ETL pipeline that scrapes job postings from multiple platforms, transforms data through medallion architecture, applies AI-based job description parsing, and sends real-time Slack alerts.
 
 [![CI/CD](https://github.com/S4njuuu3291/job-data-pipeline/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/S4njuuu3291/job-data-pipeline/actions)
 [![Terraform](https://img.shields.io/badge/Terraform-1.0+-623CE4?logo=terraform)](https://www.terraform.io/)
@@ -12,18 +12,18 @@ Fully automated ETL pipeline that scrapes job postings from multiple platforms, 
 
 <img src="img/architecure-diagram.png" alt="Architecture Diagram" width="600" height="auto" />
 
-**System Components:**  Web Scrapers (3x parallel) • ⚙ Silver transformer •  Step Functions •  EventBridge •  Slack alerter • � Superset Dashboard • � S3 + Athena/Glue •  IAM security
+**System Components:**  Web Scrapers (3x parallel) • ⚙ Silver transformer (w/ AI parsing) •  Step Functions •  EventBridge •  Slack alerter •  Superset Dashboard •  S3 + Athena/Glue •  IAM security
 
 ## What It Does
 
-**Ingests** job postings from 3 platforms → **Transforms** via medallion layers → **Queries** with Athena → **Alerts** via Slack
+**Ingests** job postings from 3 platforms → **Parses** job descriptions with AI (DeepSeek-V4-Flash) → **Transforms** via medallion layers → **Queries** with Athena → **Alerts** via Slack
 
 ### Data Pipeline
 
 | Layer | What | Where | Format | Retention |
 |-------|------|-------|--------|-----------|
 | **Bronze** | Raw scraped data | S3 `jobscraper-bronze-data` | JSON | 30 days |
-| **Silver** | Cleaned & validated | S3 `jobscraper-silver-data` | Parquet (partitioned) | 90 days |
+| **Silver** | Cleaned, validated + AI-parsed attributes | S3 `jobscraper-silver-data` | Parquet (partitioned) | 90 days |
 | **Gold** | Analytics views | Athena `v_job_*` views | SQL queryable | Live |
 | **Dashboard** | Superset BI | `http://localhost:8088` | Charts & Tables | - |
 | **Alert** | Slack notification | Slack channel | Formatted blocks | -
@@ -32,7 +32,9 @@ Fully automated ETL pipeline that scrapes job postings from multiple platforms, 
 
 Project menggunakan arsitektur **multi-environment (dev/prod)** dengan directory separation + shared modules.
 
-> **ADR Terkait:** [`ADR-001-migration-to-multi-environment.md`](docs/adr/ADR-001-migration-to-multi-environment.md)
+> **ADR Terkait:**
+> - [`ADR-001-migration-to-multi-environment.md`](docs/adr/ADR-001-migration-to-multi-environment.md)
+> - [`ADR-002-migrasi-parsing-job-description-ke-ai-based-extraction.md`](docs/adr/ADR-002.md)
 
 | Aspek | Prod | Dev |
 |-------|------|-----|
@@ -71,6 +73,8 @@ Step Functions State Machine
     └─ JobStreet Scraper (Parallel)
     ↓ (wait all scrapers)
 Silver Layer Transformation
+    ├─ Hash-based dedup (skip already-parsed jobs)
+    ├─ AI Parsing (DeepSeek-V4-Flash) — extract salary, skills, seniority, etc.
     ├─ Validate & deduplicate
     ├─ Normalize fields
     └─ Store as Parquet (partitioned by date)
@@ -125,16 +129,18 @@ Typical run collects across all platforms:
 ```
 job-data-pipeline/
 ├── src/
+│   ├── ai/                       # AI parsing module (DeepSeek client)
+│   │   └── nlp.py                #   API wrapper, prompts, cost tracking
 │   ├── scraper/                  # Web scrapers (3 platforms)
 │   │   ├── jobscraper_kalibrr.py
 │   │   ├── jobscraper_glints.py
 │   │   └── jobscraper_jobstreet.py
-│   ├── silver_layer/             # Data transformation & validation
-│   │   ├── config.py             # Schema & rules
+│   ├── silver_layer/             # Data transformation, validation & AI parsing
+│   │   ├── config.py             # Schema & rules (25+ fields)
 │   │   ├── transformations.py    # Cleaning
 │   │   ├── validators.py         # Quality checks
 │   │   ├── storage.py            # S3 & partitioning
-│   │   └── orchestrator.py       # Workflow
+│   │   └── orchestrator.py       # Workflow (incl. AI parsing step)
 │   ├── slack-alert/              # Slack notification
 │   │   └── slack_handler.py      # Athena query & send
 │   ├── utils/                    # Helpers
@@ -184,7 +190,9 @@ job-data-pipeline/
 - Dead Letter Queue enabled for failed invocations
 
 **Silver Layer Details:**
-- Validates 19-field schema using Pydantic
+- **AI Parsing:** Extracts structured attributes (role, salary, seniority, skills, job_type, work_mode, etc.) from raw job description using **DeepSeek-V4-Flash**
+- **Hash-based dedup:** Computes `sha256(job_description)` and skips AI parsing if hash already exists in S3 manifest (`_parsed_jobs/`) — only ~10-20% new/changed jobs parsed per day
+- Validates 25+ field schema using Pydantic (includes AI-parsed fields)
 - Deduplicates by `job_id` (MD5 hash of title+company+location)
 - Normalizes platform names and locations
 - Marks as `NEW` if not in previous 7 days, else `RE-POST`
@@ -199,6 +207,53 @@ job-data-pipeline/
 - Gracefully handles empty result sets
 - Lambda Layer: `requests` library for HTTP calls
 
+### AI-Based Job Description Parsing
+
+Job descriptions from all platforms are parsed using **DeepSeek-V4-Flash** to extract structured attributes for analytics (salary trends, skill demand, seniority distribution, etc.).
+
+**Extracted Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `title` | string | Job title |
+| `role` | string | Core role (without seniority prefix) |
+| `company_name` | string | Company name |
+| `location` | string | City or "Remote" |
+| `salary_min` / `salary_max` | int | Salary range (0 if not listed) |
+| `salary_currency` | enum | IDR / USD / SGD / MYR |
+| `salary_period` | enum | monthly / yearly |
+| `job_type` | enum | full_time / part_time / contract / internship / freelance |
+| `seniority` | enum | intern / entry / mid / senior / lead / manager / executive |
+| `work_mode` | enum | on_site / hybrid / remote / unknown |
+| `skills` | array | Extracted skills (e.g. ["python","sql"]) |
+| `benefits` | array | Listed benefits |
+| `experience_min` / `experience_max` | int | Required experience (years) |
+| `education` | string | Minimum education level |
+| `company_industry` | string | Company industry |
+| `posting_date` | date | Job posting date (ISO 8601) |
+
+**Cost Estimation:**
+
+| Component | Price per 1M tokens | Tokens per call | Cost per call |
+|:---|---:|:---:|:---:|
+| Input (cache miss) | $0.14 | ~1,000 | $0.00014 (~Rp 2.2) |
+| Output | $0.28 | ~50 | $0.000014 (~Rp 0.22) |
+| **Total** | | | **$0.000154 (~Rp 2.4)** |
+
+**Incremental Parsing (Hash-based Dedup):**
+- Each parsed job stores `sha256(job_description)` in S3 (`_parsed_jobs/` manifest)
+- Before AI parsing, Silver layer checks if hash exists → skip if already parsed
+- If description changes (hash mismatch) → re-parse as "updated"
+- **Impact:** Only ~10-20% of daily jobs need AI parsing → daily cost drops to **~Rp 300-500**
+
+```
+Scrape → Hash job_description → Check _parsed_jobs/ manifest
+  ├── Hash exists → Skip AI parsing, reuse existing silver data
+  └── New/changed → AI parse → Store hash + silver data
+```
+
+> **ADR Terkait:** [`ADR-002-migrasi-parsing-job-description-ke-ai-based-extraction.md`](docs/adr/ADR-002.md)
+
 ### Slack Alert Message Example
 
 Every day at 9 AM & 4 PM WIB, you receive a formatted Slack notification:
@@ -207,12 +262,18 @@ Every day at 9 AM & 4 PM WIB, you receive a formatted Slack notification:
 
 **Features:**  Block Kit (mobile) •  One-click Open button •  Platform emojis •  WIB timezone
 
-**19 Fields** (validation in `src/silver_layer/config.py`):
+**25+ Fields** (validation in `src/silver_layer/config.py`):
 
 ```
 job_id (hash)      | job_title         | company_name      | location
 job_url            | platform          | scraped_at        | keyword  
 discovery_type     | [normalized fields]
+
+# AI-parsed fields (via DeepSeek-V4-Flash):
+role               | salary_min        | salary_max        | salary_currency
+salary_period      | job_type          | seniority         | work_mode
+skills (JSON arr)  | benefits (JSON)   | experience_min    | experience_max
+education          | company_industry  | posting_date
 ```
 
 **Bronze**: Raw JSON from scrapers  
@@ -240,6 +301,10 @@ aws configure  # Set region: ap-southeast-1
 
 GitHub Secrets (Settings → Secrets → Actions):
 - `SLACK_WEBHOOK_URL`: Your Slack webhook (optional, defaults to SSM Parameter)
+- `DEEPSEEK_API_KEY`: DeepSeek API key for AI job parsing (stored in SSM Parameter Store)
+
+AWS SSM Parameter Store:
+- `/jobscraper/DEEPSEEK_API_KEY`: DeepSeek API key (used by Silver Layer Lambda)
 
 ### 3. Deploy
 
