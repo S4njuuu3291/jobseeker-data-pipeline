@@ -179,6 +179,9 @@ async def jobscraper_jobstreet(url: str, headless: bool = True, seen_ids: set = 
 
     if results:
         results = await scrape_job_details(results, headless=headless)
+        # Pastikan job_description ada
+        for j in results:
+            j.setdefault("job_description", "")
         new_ids = {j["job_id"] for j in results}
         seen_ids.update(new_ids)
         update_manifest("jobstreet", seen_ids)

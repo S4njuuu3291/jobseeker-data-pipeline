@@ -200,6 +200,9 @@ async def jobscraper_glints(url: str, headless: bool = True, seen_ids: set = Non
 
     if results:
         results = await scrape_job_details(results, headless=headless)
+        # Pastikan job_description ada
+        for j in results:
+            j.setdefault("job_description", "")
         # Update manifest SEKALI dengan semua job_id baru
         new_ids = {j["job_id"] for j in results}
         seen_ids.update(new_ids)
