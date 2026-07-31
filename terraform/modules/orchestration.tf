@@ -20,7 +20,7 @@ resource "aws_cloudwatch_event_rule" "scrape_morning" {
 resource "aws_cloudwatch_event_target" "scrape_morning_target" {
   rule      = aws_cloudwatch_event_rule.scrape_morning.name
   target_id = "TriggerStateMachineMorning"
-  arn       = aws_sfn_state_machine.joscraper_orchestrator.arn
+  arn       = aws_sfn_state_machine.jobscraper_orchestrator.arn
   role_arn  = aws_iam_role.eventbridge_role.arn
 }
 
@@ -42,7 +42,7 @@ resource "aws_cloudwatch_event_rule" "scrape_evening" {
 resource "aws_cloudwatch_event_target" "scrape_evening_target" {
   rule      = aws_cloudwatch_event_rule.scrape_evening.name
   target_id = "TriggerStateMachineEvening"
-  arn       = aws_sfn_state_machine.joscraper_orchestrator.arn
+  arn       = aws_sfn_state_machine.jobscraper_orchestrator.arn
   role_arn  = aws_iam_role.eventbridge_role.arn
 }
 
@@ -50,7 +50,7 @@ resource "aws_cloudwatch_event_target" "scrape_evening_target" {
 #           STEP FUNCTIONS STATE MACHINE
 # =========================================================
 
-resource "aws_sfn_state_machine" "joscraper_orchestrator" {
+resource "aws_sfn_state_machine" "jobscraper_orchestrator" {
   name     = "jobscraper_orchestrator${local.env_suffix_underscore}"
   role_arn = aws_iam_role.step_functions_role.arn
 

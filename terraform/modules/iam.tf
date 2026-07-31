@@ -419,7 +419,7 @@ resource "aws_iam_policy" "eventbridge_state_machine_policy" {
       Action = [
         "states:StartExecution"
       ]
-      Resource = aws_sfn_state_machine.joscraper_orchestrator.arn
+      Resource = aws_sfn_state_machine.jobscraper_orchestrator.arn
     }]
   })
 }

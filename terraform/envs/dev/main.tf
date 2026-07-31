@@ -9,7 +9,7 @@
 
 module "base" {
   source = "../../modules"
-
   env          = var.env
+  alert_email = "sanju329121@gmail.com"
   project_root = abspath("${path.root}/../../..")
 }
