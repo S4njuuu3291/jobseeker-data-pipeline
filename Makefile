@@ -63,6 +63,11 @@ tf-dev-init:
 	cd terraform/envs/dev && terraform init
 	@echo "✅ Terraform initialization complete!"
 
+tf-dev-unlock:
+	@echo "🔓 Unlocking Terraform state for dev environment..."
+	cd terraform/envs/dev && terraform force-unlock $(LOCK_ID)
+	@echo "✅ Terraform state unlocked!"
+
 tf-dev-plan:
 	@echo "🔍 Terraform plan for dev environment..."
 	cd terraform/envs/dev && terraform plan

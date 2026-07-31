@@ -9,6 +9,7 @@
 ## Code Reading & Modification Rules
 - **NEVER re-read files** multiple times in a single chat session unless explicitly instructed or if external modifications occurred. Keep track of what you have read in your temporary context.
 - **DO NOT rewrite or output the entire file** when making modifications.
+- DO NOT use command script to replace code in file. Just use basic tools to edit file
 
 ## Output Condensation
 - **Be extremely concise and terse**. Give code solutions first, then provide minimal explanations (max 2 sentences) only if highly critical.
