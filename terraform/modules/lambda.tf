@@ -87,7 +87,7 @@ resource "aws_lambda_function" "silver_layer" {
 
   environment {
     variables = {
-      platform                   = "kalibrr,glints,jobstreet"
+      platform                   = "kalibrr,glints,jobstreet,dealls,techinasia"
       AWS_S3_BUCKET_NAME         = aws_s3_bucket.bronze.id
       AWS_S3_SILVER_BUCKET_NAME  = aws_s3_bucket.silver.id
       AWS_GLUE_DATABASE_NAME     = "jobscraper_db${local.env_suffix_underscore}"

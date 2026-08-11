@@ -9,7 +9,7 @@ job_schema = DataFrameSchema(
         "job_title": Column(str),
         "job_url": Column(str),
         "platform": Column(
-            str, Check.isin(["kalibrr", "jobstreet", "glints"])
+            str, Check.isin(["kalibrr","jobstreet","glints","dealls","techinasia"])
         ),
         "scraped_at": Column(str),
         "job_description": Column(str, nullable=True),
@@ -17,7 +17,6 @@ job_schema = DataFrameSchema(
     strict=False,
     coerce=True,
 )
-
 
 def validate_job_data(df: pd.DataFrame):
     try:

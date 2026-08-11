@@ -17,17 +17,26 @@ DEFAULT_KEYWORDS = [
     "big-data-engineer",
 ]
 
-DEFAULT_KEYWORDS_GLINTS = [
+DEFAULT_KEYWORDS_PLUS = [
     "data+engineer",
     "etl",
     "big+data+engineer",
 ]
 
+# TechInAsia pakai spasi biasa (di-quote jadi %20 di main)
+DEFAULT_KEYWORDS_SPACE = [
+    "data engineer",
+    "etl developer",
+    "big data engineer",
+]
+
 # Mapping keyword per platform (untuk generic handler)
 PLATFORM_KEYWORDS = {
     "kalibrr": DEFAULT_KEYWORDS,
-    "glints": DEFAULT_KEYWORDS_GLINTS,
+    "glints": DEFAULT_KEYWORDS_PLUS,
     "jobstreet": DEFAULT_KEYWORDS,
+    "dealls": DEFAULT_KEYWORDS_PLUS,
+    "techinasia": DEFAULT_KEYWORDS_SPACE,
 }
 
 
@@ -37,7 +46,7 @@ def scraper_handler(event, context):
     Dispatch ke pipeline yang sesuai berdasarkan event["platform"].
 
     Event payload:
-        {"platform": "glints"} | {"platform": "jobstreet"} | {"platform": "kalibrr"}
+        {"platform":"glints"} | {"platform":"jobstreet"} | {"platform":"kalibrr"} | {"platform":"dealls"}
     """
     import asyncio
 
@@ -57,6 +66,14 @@ def scraper_handler(event, context):
         from src.main.main_jobstreet import run_jobstreet_pipeline
         runner = run_jobstreet_pipeline
         label = "JobStreet"
+    elif platform == "dealls":
+        from src.main.main_dealls import run_dealls_pipeline
+        runner = run_dealls_pipeline
+        label = "Dealls"
+    elif platform == "techinasia":
+        from src.main.main_techinasia import run_techinasia_pipeline
+        runner = run_techinasia_pipeline
+        label = "TechInAsia"
     else:
         raise ValueError(f"Unsupported platform: {platform}")
 
