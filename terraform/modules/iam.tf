@@ -419,7 +419,7 @@ resource "aws_iam_policy" "eventbridge_state_machine_policy" {
       Action = [
         "states:StartExecution"
       ]
-      Resource = aws_sfn_state_machine.joscraper_orchestrator.arn
+      Resource = aws_sfn_state_machine.jobscraper_orchestrator.arn
     }]
   })
 }
@@ -531,9 +531,7 @@ resource "aws_iam_policy" "step_functions_policy" {
         Effect = "Allow"
         Action = ["lambda:InvokeFunction"]
         Resource = [
-          "${aws_lambda_function.kalibrr.arn}:*",
-          "${aws_lambda_function.glints.arn}:*",
-          "${aws_lambda_function.jobstreet.arn}:*",
+          "${aws_lambda_function.scraper.arn}:*",
           "${aws_lambda_function.silver_layer.arn}:*",
           "${aws_lambda_function.slack_alert.arn}:*"
         ]

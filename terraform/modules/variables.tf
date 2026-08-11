@@ -26,3 +26,7 @@ variable "env" {
   }
 }
 
+variable "alert_email" {
+  type        = string
+  description = "Email address for receiving alerts from SNS Topic"
+}

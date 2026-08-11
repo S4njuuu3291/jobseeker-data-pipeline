@@ -13,8 +13,8 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${jobstreet_lambda_arn}:$LATEST",
-                "Payload": "{% $states.input %}"
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {"platform":"jobstreet"}
               },
               "Retry": [
                 {
@@ -42,8 +42,8 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${glints_lambda_arn}:$LATEST",
-                "Payload": "{% $states.input %}"
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {"platform":"glints"}
               },
               "Retry": [
                 {
@@ -71,8 +71,8 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${kalibrr_lambda_arn}:$LATEST",
-                "Payload": "{% $states.input %}"
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {"platform":"kalibrr"}
               },
               "Retry": [
                 {

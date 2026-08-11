@@ -23,59 +23,54 @@ DEFAULT_KEYWORDS_GLINTS = [
     "big+data+engineer",
 ]
 
-# Handler untuk Kalibrr
-def kalibrr_handler(event, context):
-    import asyncio
-    from src.main.main_kalibrr import run_kalibrr_pipeline
+# Mapping keyword per platform (untuk generic handler)
+PLATFORM_KEYWORDS = {
+    "kalibrr": DEFAULT_KEYWORDS,
+    "glints": DEFAULT_KEYWORDS_GLINTS,
+    "jobstreet": DEFAULT_KEYWORDS,
+}
 
-    print("Memicu Lambda Kalibrr...")
-    # asyncio.run digunakan karena Lambda adalah fungsi sinkronous
-    # sedangkan scraper kita asinkronous (async/await)
-    keywords = _get_keywords(DEFAULT_KEYWORDS)
+
+def scraper_handler(event, context):
+    """Generic Lambda handler untuk semua platform scraper.
+
+    Dispatch ke pipeline yang sesuai berdasarkan event["platform"].
+
+    Event payload:
+        {"platform": "glints"} | {"platform": "jobstreet"} | {"platform": "kalibrr"}
+    """
+    import asyncio
+
+    platform = (event.get("platform") or "").strip().lower()
+    if not platform:
+        raise ValueError("Missing 'platform' in event payload")
+
+    if platform == "kalibrr":
+        from src.main.main_kalibrr import run_kalibrr_pipeline
+        runner = run_kalibrr_pipeline
+        label = "Kalibrr"
+    elif platform == "glints":
+        from src.main.main_glints import run_glints_pipeline
+        runner = run_glints_pipeline
+        label = "Glints"
+    elif platform == "jobstreet":
+        from src.main.main_jobstreet import run_jobstreet_pipeline
+        runner = run_jobstreet_pipeline
+        label = "JobStreet"
+    else:
+        raise ValueError(f"Unsupported platform: {platform}")
+
+    keywords = _get_keywords(PLATFORM_KEYWORDS.get(platform, []))
+    print(f"Scraping platform: {label}")
     try:
-        result = asyncio.run(run_kalibrr_pipeline(keywords))
+        result = asyncio.run(runner(keywords))
         return {
             "statusCode": 200,
-            "body": f"Kalibrr: {result} data berhasil diproses",
+            "platform": platform,
+            "body": f"{label}: {result} data berhasil diproses",
         }
     except Exception as e:
-        print(f"Error di Lambda Kalibrr: {e}")
-        raise
-
-
-# Handler untuk Glints
-def glints_handler(event, context):
-    import asyncio
-    from src.main.main_glints import run_glints_pipeline
-
-    print("Memicu Lambda Glints...")
-    keywords = _get_keywords(DEFAULT_KEYWORDS_GLINTS)
-    try:
-        result = asyncio.run(run_glints_pipeline(keywords))
-        return {
-            "statusCode": 200,
-            "body": f"Glints: {result} data berhasil diproses",
-        }
-    except Exception as e:
-        print(f"Error di Lambda Glints: {e}")
-        raise
-
-
-# Handler untuk JobStreet
-def jobstreet_handler(event, context):
-    import asyncio
-    from src.main.main_jobstreet import run_jobstreet_pipeline
-
-    print("Memicu Lambda JobStreet...")
-    keywords = _get_keywords(DEFAULT_KEYWORDS)
-    try:
-        result = asyncio.run(run_jobstreet_pipeline(keywords))
-        return {
-            "statusCode": 200,
-            "body": f"JobStreet: {result} data berhasil diproses",
-        }
-    except Exception as e:
-        print(f"Error di Lambda JobStreet: {e}")
+        print(f"Error di Lambda {label}: {e}")
         raise
 
 

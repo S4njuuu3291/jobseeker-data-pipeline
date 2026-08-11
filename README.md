@@ -1,6 +1,6 @@
 ﻿# Job Data Pipeline
 
-Fully automated ETL pipeline that scrapes job postings from multiple platforms, transforms data through medallion architecture, applies AI-based job description parsing, and sends real-time Slack alerts.
+Fully automated data pipeline that scrapes job postings from multiple platforms, transforms data through medallion architecture, applies AI-based job description parsing, and sends real-time Slack alerts.
 
 [![CI/CD](https://github.com/S4njuuu3291/job-data-pipeline/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/S4njuuu3291/job-data-pipeline/actions)
 [![Terraform](https://img.shields.io/badge/Terraform-1.0+-623CE4?logo=terraform)](https://www.terraform.io/)
@@ -41,7 +41,7 @@ Project menggunakan arsitektur **multi-environment (dev/prod)** dengan directory
 | **Terraform** | `terraform/envs/prod/` | `terraform/envs/dev/` |
 | **State file** | `terraform.tfstate` | `dev/terraform.tfstate` |
 | **S3 bucket** | `jobscraper-bronze-data` | `jobscraper-bronze-data-dev` |
-| **Lambda** | `jobscraper-kalibrr` | `jobscraper-kalibrr-dev` |
+| **Lambda** | `jobscraper-scraper` | `jobscraper-scraper-dev` |
 | **ECR repo** | `job-scraper-lambda` | `job-scraper-lambda-dev` |
 | **Glue DB** | `jobscraper_db` | `jobscraper_db_dev` |
 | **CI/CD trigger** | Push ke `main` | Push ke `dev` |
@@ -73,7 +73,6 @@ Step Functions State Machine
     └─ JobStreet Scraper (Parallel)
     ↓ (wait all scrapers)
 Silver Layer Transformation
-    ├─ Hash-based dedup (skip already-parsed jobs)
     ├─ AI Parsing (DeepSeek-V4-Flash) — extract salary, skills, seniority, etc.
     ├─ Validate & deduplicate
     ├─ Normalize fields
@@ -191,9 +190,9 @@ job-data-pipeline/
 
 **Silver Layer Details:**
 - **AI Parsing:** Extracts structured attributes (role, salary, seniority, skills, job_type, work_mode, etc.) from raw job description using **DeepSeek-V4-Flash**
-- **Hash-based dedup:** Computes `sha256(job_description)` and skips AI parsing if hash already exists in S3 manifest (`_parsed_jobs/`) — only ~10-20% new/changed jobs parsed per day
-- Validates 25+ field schema using Pydantic (includes AI-parsed fields)
-- Deduplicates by `job_id` (MD5 hash of title+company+location)
+- **Job ID dedup:** Leverages the scraper-level `job_id` manifest to skip re-processing jobs that have already been scraped and parsed
+- Validates 25+ field schema using Pandera (includes AI-parsed fields)
+- Deduplicates by `job_id` (MD5 hash of normalized job URL)
 - Normalizes platform names and locations
 - Marks as `NEW` if not in previous 7 days, else `RE-POST`
 - Partitions by `ingestion_date` and `platform`
@@ -240,16 +239,17 @@ Job descriptions from all platforms are parsed using **DeepSeek-V4-Flash** to ex
 | Output | $0.28 | ~50 | $0.000014 (~Rp 0.22) |
 | **Total** | | | **$0.000154 (~Rp 2.4)** |
 
-**Incremental Parsing (Hash-based Dedup):**
-- Each parsed job stores `sha256(job_description)` in S3 (`_parsed_jobs/` manifest)
-- Before AI parsing, Silver layer checks if hash exists → skip if already parsed
-- If description changes (hash mismatch) → re-parse as "updated"
-- **Impact:** Only ~10-20% of daily jobs need AI parsing → daily cost drops to **~Rp 300-500**
+**Incremental Processing (Job ID Dedup):**
+- At the scraper level, each job receives a `job_id` (MD5 hash of the normalized job URL)
+- Before scraping details, the scraper reads a Parquet manifest at `manifests/<platform>/job_ids.parquet` in the Bronze bucket
+- If `job_id` exists → skip entirely (no Playwright request, no downstream processing)
+- Only new jobs proceed to Bronze → Silver → AI parsing
+- **Impact:** Eliminates 80–90% of redundant scraping daily; AI costs stay at **~Rp 300-500/day**
 
 ```
-Scrape → Hash job_description → Check _parsed_jobs/ manifest
-  ├── Hash exists → Skip AI parsing, reuse existing silver data
-  └── New/changed → AI parse → Store hash + silver data
+Scrape job cards → Compute job_id (MD5 of URL) → Check manifest/
+  ├── Hash exists → Skip job entirely
+  └── New job → Scrape details → Bronze → AI parse → Silver
 ```
 
 > **ADR Terkait:** [`ADR-002-migrasi-parsing-job-description-ke-ai-based-extraction.md`](docs/adr/ADR-002.md)
@@ -446,7 +446,7 @@ make init-superset
 ## Architecture Decisions
 
 - **[ADR-001](docs/adr/ADR-001-migration-to-multi-environment.md):** Migrasi ke arsitektur multi-environment (dev/prod) dengan directory separation + shared modules.
-- **ADR-002:** (coming soon)
+- **[ADR-002](docs/adr/ADR-002.md):** Migrasi parsing job description ke AI-based extraction menggunakan DeepSeek-V4-Flash.
 
 ## License
 
