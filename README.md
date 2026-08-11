@@ -41,7 +41,7 @@ Project menggunakan arsitektur **multi-environment (dev/prod)** dengan directory
 | **Terraform** | `terraform/envs/prod/` | `terraform/envs/dev/` |
 | **State file** | `terraform.tfstate` | `dev/terraform.tfstate` |
 | **S3 bucket** | `jobscraper-bronze-data` | `jobscraper-bronze-data-dev` |
-| **Lambda** | `jobscraper-kalibrr` | `jobscraper-kalibrr-dev` |
+| **Lambda** | `jobscraper-scraper` | `jobscraper-scraper-dev` |
 | **ECR repo** | `job-scraper-lambda` | `job-scraper-lambda-dev` |
 | **Glue DB** | `jobscraper_db` | `jobscraper_db_dev` |
 | **CI/CD trigger** | Push ke `main` | Push ke `dev` |
