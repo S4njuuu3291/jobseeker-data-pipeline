@@ -55,9 +55,7 @@ resource "aws_sfn_state_machine" "jobscraper_orchestrator" {
   role_arn = aws_iam_role.step_functions_role.arn
 
   definition = templatefile("${path.module}/step_functions/JobScraperMachine.asl.json", {
-    kalibrr_lambda_arn      = aws_lambda_function.kalibrr.arn
-    glints_lambda_arn       = aws_lambda_function.glints.arn
-    jobstreet_lambda_arn    = aws_lambda_function.jobstreet.arn
+    scraper_lambda_arn      = aws_lambda_function.scraper.arn
     silver_layer_lambda_arn = aws_lambda_function.silver_layer.arn
     slack_alert_lambda_arn  = aws_lambda_function.slack_alert.arn
   })

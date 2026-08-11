@@ -1,5 +1,5 @@
 {
-  "Comment": "Job Scraper Pipeline: Parallel scrapers → Sequential silver layer transformation",
+  "Comment": "Job Scraper Pipeline: Parallel scrapers \u2192 Sequential silver layer transformation",
   "StartAt": "ScrapersParallel",
   "States": {
     "ScrapersParallel": {
@@ -13,8 +13,10 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${jobstreet_lambda_arn}:$LATEST",
-                "Payload": "{% $states.input %}"
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {
+                  "platform": "jobstreet"
+                }
               },
               "Retry": [
                 {
@@ -42,8 +44,10 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${glints_lambda_arn}:$LATEST",
-                "Payload": "{% $states.input %}"
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {
+                  "platform": "glints"
+                }
               },
               "Retry": [
                 {
@@ -71,8 +75,72 @@
               "Resource": "arn:aws:states:::lambda:invoke",
               "Output": "{% $states.result.Payload %}",
               "Arguments": {
-                "FunctionName": "${kalibrr_lambda_arn}:$LATEST",
-                "Payload": "{% $states.input %}"
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {
+                  "platform": "kalibrr"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "dealls-scraper",
+          "States": {
+            "dealls-scraper": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": "{% $states.result.Payload %}",
+              "Arguments": {
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {
+                  "platform": "dealls"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 1,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2,
+                  "JitterStrategy": "FULL"
+                }
+              ],
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "techinasia-scraper",
+          "States": {
+            "techinasia-scraper": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Output": "{% $states.result.Payload %}",
+              "Arguments": {
+                "FunctionName": "${scraper_lambda_arn}:$LATEST",
+                "Payload": {
+                  "platform": "techinasia"
+                }
               },
               "Retry": [
                 {
@@ -143,7 +211,9 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "Next": "Success",
           "Comment": "Continue even if Slack alert fails"
         }

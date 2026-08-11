@@ -22,9 +22,9 @@ resource "aws_lambda_layer_version" "slack_alert_layer" {
 #                     LAMBDA RESOURCE
 # =========================================================
 
-# Resource untuk Kalibrr
-resource "aws_lambda_function" "kalibrr" {
-  function_name = "jobscraper-kalibrr${local.env_suffix}"
+# Resource untuk Scraper (generik — semua platform, dispatch via event["platform"])
+resource "aws_lambda_function" "scraper" {
+  function_name = "jobscraper-scraper${local.env_suffix}"
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   architectures = ["x86_64"]
@@ -41,14 +41,13 @@ resource "aws_lambda_function" "kalibrr" {
   }
 
   image_config {
-    command = ["src.entrypoint.handlers.kalibrr_handler"]
+    command = ["src.entrypoint.handlers.scraper_handler"]
   }
 
   environment {
     variables = {
       PLAYWRIGHT_BROWSERS_PATH = "/opt/pw-browsers"
       AWS_S3_BUCKET_NAME       = aws_s3_bucket.bronze.id
-      SCRAPE_KEYWORDS          = "data-engineer-intern,etl-developer-intern,big-data-intern,bi-engineer-intern"
     }
   }
 
@@ -59,91 +58,7 @@ resource "aws_lambda_function" "kalibrr" {
     Environment = var.env
     Project     = "Job-Scraper"
     Owner       = "Sanju"
-    Platform    = "Kalibrr"
-    ManagedBy   = "Terraform"
-  }
-}
-
-# Resource untuk Glints
-resource "aws_lambda_function" "glints" {
-  function_name = "jobscraper-glints${local.env_suffix}"
-  role          = aws_iam_role.lambda_exec_role.arn
-  package_type  = "Image"
-  architectures = ["x86_64"]
-  image_uri     = local.ecr_image_uri
-
-  publish = false
-
-  lifecycle {
-    ignore_changes = [publish]
-  }
-
-  dead_letter_config {
-    target_arn = aws_sqs_queue.scraper_dlq.arn
-  }
-
-  image_config {
-    command = ["src.entrypoint.handlers.glints_handler"]
-  }
-
-  environment {
-    variables = {
-      PLAYWRIGHT_BROWSERS_PATH = "/opt/pw-browsers"
-      AWS_S3_BUCKET_NAME       = aws_s3_bucket.bronze.id
-      SCRAPE_KEYWORDS          = "data+engineer+intern,etl+developer+intern,big+data+intern,bi+engineer+intern"
-    }
-  }
-
-  memory_size = 3008
-  timeout     = 900
-
-  tags = {
-    Environment = var.env
-    Project     = "Job-Scraper"
-    Owner       = "Sanju"
-    Platform    = "Glints"
-    ManagedBy   = "Terraform"
-  }
-}
-
-# Resource untuk Jobstreet
-resource "aws_lambda_function" "jobstreet" {
-  function_name = "jobscraper-jobstreet${local.env_suffix}"
-  role          = aws_iam_role.lambda_exec_role.arn
-  package_type  = "Image"
-  architectures = ["x86_64"]
-  image_uri     = local.ecr_image_uri
-
-  publish = false
-
-  lifecycle {
-    ignore_changes = [publish]
-  }
-
-  dead_letter_config {
-    target_arn = aws_sqs_queue.scraper_dlq.arn
-  }
-
-  image_config {
-    command = ["src.entrypoint.handlers.jobstreet_handler"]
-  }
-
-  environment {
-    variables = {
-      PLAYWRIGHT_BROWSERS_PATH = "/opt/pw-browsers"
-      AWS_S3_BUCKET_NAME       = aws_s3_bucket.bronze.id
-      SCRAPE_KEYWORDS          = "data-engineer-intern,etl-developer-intern,big-data-intern,bi-engineer-intern"
-    }
-  }
-
-  memory_size = 3008
-  timeout     = 900
-
-  tags = {
-    Environment = var.env
-    Project     = "Job-Scraper"
-    Owner       = "Sanju"
-    Platform    = "JobStreet"
+    Platform    = "all"
     ManagedBy   = "Terraform"
   }
 }
@@ -172,7 +87,7 @@ resource "aws_lambda_function" "silver_layer" {
 
   environment {
     variables = {
-      platform                   = "kalibrr,glints,jobstreet"
+      platform                   = "kalibrr,glints,jobstreet,dealls,techinasia"
       AWS_S3_BUCKET_NAME         = aws_s3_bucket.bronze.id
       AWS_S3_SILVER_BUCKET_NAME  = aws_s3_bucket.silver.id
       AWS_GLUE_DATABASE_NAME     = "jobscraper_db${local.env_suffix_underscore}"

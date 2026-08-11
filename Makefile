@@ -1,4 +1,4 @@
-.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply docker-ecr-login-dev docker-ecr-push-dev tf-dev-plan tf-dev-apply
+.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply docker-ecr-login-dev docker-ecr-push-dev tf-dev-plan tf-dev-apply reset-manifest
 
 # Git shortcuts
 sync-main:
@@ -57,6 +57,13 @@ docker-build:
 
 docker-up:
 	docker compose up -d
+
+# Reset manifest untuk platform tertentu (biar scrape ulang fresh)
+# Usage: make reset-manifest PLATFORM=dealls
+reset-manifest:
+	@echo "Resetting manifest for platform: $(PLATFORM)"
+	poetry run python -c "import sys; sys.path.insert(0, '.'); from src.utils.manifest import read_manifest, update_manifest; print('before:', len(read_manifest('$(PLATFORM)'))); update_manifest('$(PLATFORM)', set()); print('after:', len(read_manifest('$(PLATFORM)')))"
+	@echo "Manifest $(PLATFORM) reset!"
 
 tf-dev-init:
 	@echo "🔧 Initializing Terraform for dev environment..."
