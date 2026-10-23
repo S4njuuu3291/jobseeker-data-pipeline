@@ -144,7 +144,20 @@ class TestValidateSilverSchema:
     def test_validate_returns_same_dataframe(self, valid_dataframe):
         """Test that validation returns the same dataframe when valid."""
         result = validate_silver_schema(valid_dataframe)
-        pd.testing.assert_frame_equal(result, valid_dataframe)
+        pd.testing.assert_frame_equal(
+            result,
+            valid_dataframe.astype(
+                {
+                    name: "Int64"
+                    for name in (
+                        "salary_min",
+                        "salary_max",
+                        "experience_min",
+                        "experience_max",
+                    )
+                }
+            ),
+        )
 
     def test_validate_empty_dataframe(self):
         """Test validation succeeds with empty dataframe (edge case)."""
@@ -225,8 +238,6 @@ class TestValidateSilverSchema:
                 "platform": ["kalibrr"] * 1000,
                 "scraped_at": ["20260305_090000"] * 1000,
                 "keyword": ["kw"] * 1000,
-                
-                
                 "role": ["Engineer"] * 1000,
                 "company_industry": ["Tech"] * 1000,
                 "salary_min": [0] * 1000,
@@ -241,7 +252,6 @@ class TestValidateSilverSchema:
                 "education": ["unknown"] * 1000,
                 "skills": ["[]"] * 1000,
                 "benefits": ["[]"] * 1000,
-
             }
         )
         result = validate_silver_schema(df)

@@ -41,7 +41,7 @@ class TestTransformSilver:
     ):
         """Test successful transformation pipeline."""
         # Setup mocks
-        mock_normalize.return_value = sample_bronze_dataframe.copy()
+        mock_normalize.side_effect = lambda df: df.copy()
         mock_validate.return_value = sample_bronze_dataframe.copy()
         mock_upload.return_value = (
             "ingestion_date=2026-03-05/job_data_2026-03-05.parquet"
@@ -65,7 +65,7 @@ class TestTransformSilver:
         self, mock_normalize, mock_validate, sample_bronze_dataframe
     ):
         """Test that validation errors are propagated."""
-        mock_normalize.return_value = sample_bronze_dataframe.copy()
+        mock_normalize.side_effect = lambda df: df.copy()
         mock_validate.side_effect = Exception("Schema validation failed")
 
         with pytest.raises(Exception, match="Schema validation failed"):
@@ -107,7 +107,7 @@ class TestRunPipeline:
         # Setup mocks
         mock_platforms.return_value = ["kalibrr", "glints"]
         mock_get_bronze.return_value = sample_bronze_dataframe
-        mock_normalize.return_value = sample_bronze_dataframe.copy()
+        mock_normalize.side_effect = lambda df: df.copy()
         mock_validate.return_value = sample_bronze_dataframe.copy()
         mock_upload.return_value = (
             "ingestion_date=2026-03-05/job_data_2026-03-05.parquet"
@@ -205,7 +205,7 @@ class TestRunPipeline:
         df = pd.DataFrame({"test": [1, 2, 3]})
         mock_platforms.return_value = ["kalibrr"]
         mock_get_bronze.return_value = df
-        mock_normalize.return_value = df
+        mock_normalize.side_effect = lambda df: df.copy()
         mock_validate.return_value = df
         mock_upload.side_effect = Exception("S3 write failed")
 
@@ -214,3 +214,13 @@ class TestRunPipeline:
         assert result["statusCode"] == 500
         assert "failed" in result["message"].lower()
         assert "error" in result
+
+
+@pytest.fixture(autouse=True)
+def prevent_live_ai_requests(monkeypatch):
+    from src.ai.nlp import empty_result
+
+    monkeypatch.setattr(
+        "src.silver_layer.orchestrator.parse_job",
+        lambda *args, **kwargs: empty_result(kwargs.get("fields", [])),
+    )
