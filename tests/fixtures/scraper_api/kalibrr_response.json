@@ -1,0 +1,52 @@
+{
+  "jobs": [
+    {
+      "base_salary": null,
+      "maximum_salary": null,
+      "salary_currency": null,
+      "salary_interval": null,
+      "salary_shown": true,
+      "tenure": "Contractual",
+      "work_experience": 200,
+      "perks": {
+        "other": null,
+        "types": [
+          "sick_leave",
+          "discounts",
+          "med_plans"
+        ]
+      },
+      "is_featured": false,
+      "is_hybrid": false,
+      "is_work_from_home": false,
+      "id": 900001,
+      "name": "Field Education Consultant",
+      "slug": "field-education-consultant",
+      "company_name": "Example Company 1",
+      "company": {
+        "id": 1,
+        "code": "example-company",
+        "name": "Example Company 1",
+        "description": "Perusahaan contoh untuk pengujian.",
+        "industry": "Technology",
+        "verified_business": true,
+        "visible": true
+      },
+      "google_location": {
+        "address_components": {
+          "address_line_1": "Example address",
+          "city": "Jakarta",
+          "country": "Indonesia",
+          "region": "DKI Jakarta"
+        }
+      },
+      "description": "<ul><li>Membangun pipeline data dengan Python dan SQL.</li></ul>",
+      "qualifications": "<ul><li>Pendidikan minimal Diploma dan pengalaman ETL.</li></ul>"
+    }
+  ],
+  "count": 501,
+  "search_text": "data engineer",
+  "correction_text_search": null,
+  "from_alternative": false,
+  "from_correction": false
+}
