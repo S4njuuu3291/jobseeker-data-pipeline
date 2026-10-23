@@ -55,23 +55,23 @@ def scraper_handler(event, context):
         raise ValueError("Missing 'platform' in event payload")
 
     if platform == "kalibrr":
-        from src.main.main_kalibrr import run_kalibrr_pipeline
+        from src.main.main import run_kalibrr_pipeline
         runner = run_kalibrr_pipeline
         label = "Kalibrr"
     elif platform == "glints":
-        from src.main.main_glints import run_glints_pipeline
+        from src.main.main import run_glints_pipeline
         runner = run_glints_pipeline
         label = "Glints"
     elif platform == "jobstreet":
-        from src.main.main_jobstreet import run_jobstreet_pipeline
+        from src.main.main import run_jobstreet_pipeline
         runner = run_jobstreet_pipeline
         label = "JobStreet"
     elif platform == "dealls":
-        from src.main.main_dealls import run_dealls_pipeline
+        from src.main.main import run_dealls_pipeline
         runner = run_dealls_pipeline
         label = "Dealls"
     elif platform == "techinasia":
-        from src.main.main_techinasia import run_techinasia_pipeline
+        from src.main.main import run_techinasia_pipeline
         runner = run_techinasia_pipeline
         label = "TechInAsia"
     else:

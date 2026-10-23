@@ -572,7 +572,7 @@ if __name__ == "__main__":
             results = await scrape_job_details(new_cards, headless=True)
             logger.info(f"Total: {len(results)} job baru discrape")
             # NOTE: testing lokal gak update manifest (avoid AWS write).
-            # Update manifest dilakukan di main_dealls.py / Lambda (production).
+            # Update manifest dilakukan di src/main/main.py / Lambda (production).
         else:
             logger.info("Semua job sudah ada di manifest, tidak ada yang perlu discrape")
 

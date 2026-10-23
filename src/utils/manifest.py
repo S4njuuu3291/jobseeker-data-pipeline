@@ -135,17 +135,17 @@ def filter_new_jobs(cards: list[dict], seen_ids: Set[str]) -> list[dict]:
     Returns:
         List job cards yang belum pernah discrape (baru).
     """
-    if not seen_ids:
-        return cards
-
+    batch_seen = set(seen_ids)
     new_cards = []
     skipped = 0
     for card in cards:
         jid = card.get("job_id")
-        if jid and jid in seen_ids:
+        if jid and jid in batch_seen:
             skipped += 1
         else:
             new_cards.append(card)
+            if jid:
+                batch_seen.add(jid)
 
     if skipped:
         logger.info(f"  Skip {skipped} job sudah ada di manifest")
