@@ -20,6 +20,8 @@ import logging
 import os
 from typing import Set
 
+from botocore.exceptions import ClientError
+
 import boto3
 import pandas as pd
 import pyarrow.parquet as pq
@@ -48,6 +50,7 @@ def _get_bucket_name() -> str:
 
     try:
         from dotenv import load_dotenv
+
         load_dotenv()
         bucket = os.getenv("AWS_S3_BUCKET_NAME")
     except ImportError:
@@ -81,15 +84,22 @@ def read_manifest(platform: str) -> Set[str]:
         body_bytes = response["Body"].read()
         table = pq.read_table(io.BytesIO(body_bytes))
         df = table.to_pandas()
-        job_ids = set(df["job_id"].dropna().tolist()) if "job_id" in df.columns else set()
+        if "job_id" not in df.columns:
+            raise ValueError("Manifest is missing job_id")
+        job_ids = set(df["job_id"].dropna().astype(str).tolist())
         logger.info(f" Manifest {platform}: {len(job_ids)} job_id existing")
         return job_ids
-    except s3.exceptions.NoSuchKey:
-        logger.info(f" Manifest {platform} belum ada — first run, start fresh")
-        return set()
-    except Exception as e:
-        logger.warning(f"  Gagal baca manifest {platform}: {e}, start fresh")
-        return set()
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") in {"NoSuchKey", "404"}:
+            logger.info("Manifest %s belum ada; first run", platform)
+            return set()
+        raise RuntimeError(
+            f"Cannot read manifest for {platform}; refusing to rescrape"
+        ) from None
+    except Exception:
+        raise RuntimeError(
+            f"Cannot read manifest for {platform}; refusing to rescrape"
+        ) from None
 
 
 def update_manifest(platform: str, seen_ids: Set[str]) -> bool:

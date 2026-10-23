@@ -9,7 +9,7 @@ job_schema = DataFrameSchema(
         "job_title": Column(str),
         "job_url": Column(str),
         "platform": Column(
-            str, Check.isin(["kalibrr","jobstreet","glints","dealls","techinasia"])
+            str, Check.isin(["kalibrr", "jobstreet", "glints", "dealls", "techinasia"])
         ),
         "scraped_at": Column(str),
         "job_description": Column(str, nullable=True),
@@ -17,6 +17,7 @@ job_schema = DataFrameSchema(
     strict=False,
     coerce=True,
 )
+
 
 def validate_job_data(df: pd.DataFrame):
     try:
@@ -43,3 +44,36 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"❌ Gagal proses: {e}")
+
+
+def validate_api_job_data(df: pd.DataFrame):
+    """Enforce the complete API Bronze contract, including nullable integer types."""
+    from src.scraper.bronze_schema import BRONZE_COLUMNS, INTEGER_COLUMNS
+
+    required = {"job_id", "job_title", "job_url", "platform", "scraped_at", "keyword"}
+    schema = DataFrameSchema(
+        {
+            name: Column(
+                pd.Int64Dtype() if name in INTEGER_COLUMNS else str,
+                nullable=name not in required,
+                unique=name == "job_id",
+                checks=Check.isin(
+                    ["kalibrr", "jobstreet", "glints", "dealls", "techinasia"]
+                )
+                if name == "platform"
+                else None,
+            )
+            for name in BRONZE_COLUMNS
+        },
+        strict=True,
+        coerce=True,
+    )
+    result = schema.validate(df)
+    for name in ("skills", "benefits"):
+        for value in result[name].dropna():
+            parsed = json.loads(value)
+            if not isinstance(parsed, list) or any(
+                not isinstance(item, str) for item in parsed
+            ):
+                raise ValueError(f"{name} must be a JSON array of strings")
+    return result[list(BRONZE_COLUMNS)]

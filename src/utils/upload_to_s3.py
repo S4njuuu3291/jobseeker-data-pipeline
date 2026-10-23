@@ -2,6 +2,9 @@ from typing import TYPE_CHECKING
 import boto3
 import io
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+from uuid import uuid4
 from dotenv import load_dotenv
 import os
 from src.utils.time_utils import now_wib
@@ -23,21 +26,25 @@ def upload_to_s3(df: pd.DataFrame, platform: str):
     date_str = now.strftime("%Y-%m-%d")
     timestamp = now.strftime("%H%M%S")
 
-    # check if already exist object in ingestion_date, if exist, replace with new file, if not exist, create new file
-
-    existing_objects = s3.list_objects_v2(
-        Bucket=bucket_name, Prefix=f"platform={platform}/ingestion_date={date_str}/")
-    if existing_objects.get("KeyCount", 0) > 0:
-        for obj in existing_objects["Contents"]:
-            s3.delete_object(Bucket=bucket_name, Key=obj["Key"])
-        print(
-            f" Menghapus {existing_objects['KeyCount']} file lama di folder ingestion_date={date_str}")
-
-    file_key = (
-        f"platform={platform}/ingestion_date={date_str}/{platform}_{timestamp}.parquet")
+    # Incremental batches must not delete jobs uploaded earlier on the same day.
+    file_key = f"platform={platform}/ingestion_date={date_str}/{platform}_{timestamp}_{uuid4().hex}.parquet"
 
     parquet_buffer = io.BytesIO()
-    df.to_parquet(parquet_buffer, engine="pyarrow", index=False)
+    from src.scraper.bronze_schema import BRONZE_COLUMNS, INTEGER_COLUMNS
+
+    if set(df.columns) == set(BRONZE_COLUMNS):
+        schema = pa.schema(
+            [
+                (name, pa.int64() if name in INTEGER_COLUMNS else pa.string())
+                for name in BRONZE_COLUMNS
+            ]
+        )
+        table = pa.Table.from_pandas(
+            df[list(BRONZE_COLUMNS)], schema=schema, preserve_index=False
+        )
+        pq.write_table(table, parquet_buffer)
+    else:
+        df.to_parquet(parquet_buffer, engine="pyarrow", index=False)
 
     try:
         s3.put_object(Bucket=bucket_name, Key=file_key, Body=parquet_buffer.getvalue())

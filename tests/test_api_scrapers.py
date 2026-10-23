@@ -2,7 +2,6 @@
 
 import asyncio
 import copy
-import hashlib
 import importlib
 import json
 from pathlib import Path
@@ -15,8 +14,8 @@ import pytest
 
 from src.main.main import build_search_url
 from src.scraper import _api_common as api
-from src.utils.data_validator import validate_job_data
-from src.utils.scraper_utils import normalize_url
+from src.scraper.bronze_schema import BRONZE_COLUMNS
+from src.utils.data_validator import validate_api_job_data
 
 DATA = Path(__file__).resolve().parent / "fixtures" / "scraper_api"
 FILES = {
@@ -26,19 +25,11 @@ FILES = {
     "kalibrr": "kalibrr_response.json",
     "techinasia": "techinasia_response.json",
 }
-FIELDS = {
-    "job_id",
-    "job_title",
-    "company_name",
-    "job_url",
-    "platform",
-    "scraped_at",
-    "job_description",
-}
+FIELDS = set(BRONZE_COLUMNS)
 
 
 def module(platform):
-    return importlib.import_module(f"src.scraper.jobscraper_{platform}_api")
+    return importlib.import_module(f"src.scraper.jobscraper_{platform}")
 
 
 def fixture(platform):
@@ -68,13 +59,83 @@ def install_mock(monkeypatch, handler):
     monkeypatch.setattr(api, "client", client)
 
 
+def detail_or_listing(request, platform):
+    """Synthetic detail bodies preserving the observed public field structure."""
+    jobs = jobs_in(fixture(platform), platform)
+    if platform == "dealls" and "/public/slug/" in request.url.path:
+        slug = request.url.path.rsplit("/", 1)[-1]
+        job = copy.deepcopy(next(j for j in jobs if j["slug"] == slug))
+        job.update(
+            responsibilities="<p>Build data pipelines.</p>",
+            requirements="<p>Bachelor degree. Min. 1 year of experience.</p>",
+            jobRole={"name": "Data Engineer"},
+            publishedAt="2026-10-23T00:00:00Z",
+        )
+        job["company"]["description"] = "<p>Example company context.</p>"
+        return httpx.Response(200, json={"code": 200, "data": {"result": job}})
+    if platform == "glints" and request.method == "GET":
+        job = copy.deepcopy(
+            next(j for j in jobs if j["id"] == request.url.path.rsplit("/", 1)[-1])
+        )
+        job["descriptionJsonString"] = json.dumps(
+            {"blocks": [{"text": "Build data pipelines."}]}
+        )
+        job["company"]["descriptionJsonString"] = json.dumps(
+            {"blocks": [{"text": "Example company context."}]}
+        )
+        job["benefits"] = [{"title": "Health insurance"}]
+        hydration = {"props": {"pageProps": {"initialData": {"data": job}}}}
+        return httpx.Response(
+            200,
+            text='<script id="__NEXT_DATA__" type="application/json">'
+            + json.dumps(hydration)
+            + "</script>",
+        )
+    if platform == "jobstreet" and request.url.path == "/graphql":
+        jid = json.loads(request.content)["variables"]["jobId"]
+        source = next(j for j in jobs if str(j["id"]) == jid)
+        detail = {
+            "job": {
+                "id": jid,
+                "title": source["title"],
+                "content2": "<p>Diploma degree or above. Build pipelines.</p>",
+                "salary": {
+                    "currencyLabel": None,
+                    "label": "Rp 7.000.000 – Rp 10.000.000 per month",
+                },
+                "advertiser": {"name": source["companyName"]},
+                "workTypes": {"label": "Full time"},
+                "listedAt": {"dateTimeUtc": "2026-10-23T00:00:00Z"},
+            },
+            "companyProfile": {
+                "overview": {
+                    "industry": "Technology",
+                    "description": {"paragraphs": ["Example company context."]},
+                },
+                "perksAndBenefits": [{"title": "Health insurance"}],
+            },
+            "workArrangements": {"arrangements": [{"type": "ONSITE"}]},
+            "seoInfo": {"normalisedRoleTitle": "Data Engineer"},
+        }
+        return httpx.Response(200, json={"data": {"jobDetails": detail}})
+    if platform == "techinasia" and request.method == "GET":
+        if "/companies/" in request.url.path:
+            return httpx.Response(
+                200, text='<meta name="description" content="Example company context.">'
+            )
+        return httpx.Response(
+            200, text='<link rel="canonical" href="' + str(request.url) + '">'
+        )
+    return httpx.Response(200, json=fixture(platform))
+
+
 @pytest.mark.parametrize("platform", FILES)
 def test_recorded_listing_matches_bronze_and_manifest_contract(platform, monkeypatch):
     requests = []
 
     def respond(request):
         requests.append(request)
-        return httpx.Response(200, json=fixture(platform))
+        return detail_or_listing(request, platform)
 
     install_mock(monkeypatch, respond)
     runner = getattr(module(platform), f"jobscraper_{platform}")
@@ -82,26 +143,30 @@ def test_recorded_listing_matches_bronze_and_manifest_contract(platform, monkeyp
     # Even local previews/adapters must never accidentally touch AWS.
     with patch("boto3.client", side_effect=AssertionError("Unexpected AWS call")):
         records = asyncio.run(runner(url, max_pages=1))
-        assert len(requests) == 1
+        assert requests
         if platform == "kalibrr":
             # Sanitized example retains an unrelated title from the observed result.
             assert records == []
         else:
             assert records
-            validate_job_data(pd.DataFrame(records))
+            validate_api_job_data(pd.DataFrame(records))
             for row in records:
                 assert set(row) == FIELDS
                 assert row["platform"] == platform
-                assert (
-                    row["job_id"]
-                    == hashlib.md5(normalize_url(row["job_url"]).encode()).hexdigest()
-                )
+                assert row["job_id"] in {
+                    str(j["id"]) for j in jobs_in(fixture(platform), platform)
+                }
+                assert row["keyword"] == "data engineer"
                 assert row["job_description"]
                 assert "<p>" not in row["job_description"]
             seen = {row["job_id"] for row in records}
             unchanged = seen.copy()
+            before = len(requests)
             assert asyncio.run(runner(url, seen_ids=seen, max_pages=1)) == []
             assert seen == unchanged
+            assert (
+                len(requests) == before + 1
+            )  # Listing only; no repeated detail calls.
 
     first = requests[0]
     if platform == "glints":
@@ -156,7 +221,7 @@ def test_pagination_continues_after_filtered_page_and_stops_on_repeated_ids(
         return httpx.Response(200, json=bodies[min(len(requests) - 1, 2)])
 
     install_mock(monkeypatch, respond)
-    runner = getattr(module(platform), f"jobscraper_{platform}")
+    runner = module(platform).collect_job_cards
     records = asyncio.run(
         runner(build_search_url(platform, "data engineer"), max_pages=5)
     )
@@ -259,9 +324,29 @@ def test_existing_search_url_keyword_formats(platform, keyword):
     )
 
 
-def test_record_identity_matches_existing_tracking_normalization():
+def test_record_uses_native_id_and_nullable_values():
     url = "https://id.jobstreet.com/id/job/123;params?tracking=one#details"
-    row = api.record("jobstreet", "Data Engineer", None, url, None, "20261023_080000")
-    assert row["job_id"] == hashlib.md5(normalize_url(url).encode()).hexdigest()
-    assert row["company_name"] == "Unknown"
+    row = api.record(
+        "jobstreet", "Data Engineer", None, url, None, "20261023_080000", native_id=123
+    )
+    assert row["job_id"] == "123"
+    assert row["company_name"] is None
     assert row["job_description"] is None
+    assert set(row) == FIELDS
+    assert row["job_url"] == "https://id.jobstreet.com/id/job/123"
+
+
+def test_legacy_manifest_hash_skips_detail_without_mutating_seen_ids():
+    row = api.record(
+        "jobstreet",
+        "Data Engineer",
+        None,
+        "https://id.jobstreet.com/id/job/123",
+        None,
+        "20261023_080000",
+        native_id=123,
+    )
+    seen = {api.legacy_id(row["job_url"])}
+    original = seen.copy()
+    assert api.new_records([row], seen) == []
+    assert seen == original
