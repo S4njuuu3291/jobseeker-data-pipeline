@@ -70,9 +70,16 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     full_url = f"https://id.jobstreet.com{relative_url}"
                     job_id = hashlib.md5(normalize_url(full_url).encode()).hexdigest()
 
+                    # Company XPath relatif ke card agar berlaku untuk semua listing.
+                    company_elem = card.locator('xpath=./div[4]/div[1]/div[2]/div/div[1]/h3/div/a').first
+                    company_name = "Unknown"
+                    if await company_elem.count():
+                        company_name = (await company_elem.text_content() or "").strip() or "Unknown"
+
                     results.append({
                         "job_id": job_id,
                         "job_title": job_title,
+                        "company_name": company_name,
                         "job_url": full_url,
                         "platform": "jobstreet",
                         "scraped_at": timestamp,
@@ -166,7 +173,7 @@ async def scrape_job_details(results: list, headless: bool = True) -> list:
 async def jobscraper_jobstreet(url: str, headless: bool = True, seen_ids: set = None) -> list:
     """Main orchestrator: collect cards -> filter manifest -> scrape details."""
     import asyncio
-    from src.utils.manifest import filter_new_jobs, update_manifest
+    from src.utils.manifest import filter_new_jobs
 
     try:
         results = await collect_job_cards(url, headless=headless)
@@ -182,10 +189,6 @@ async def jobscraper_jobstreet(url: str, headless: bool = True, seen_ids: set = 
         # Pastikan job_description ada
         for j in results:
             j.setdefault("job_description", "")
-        new_ids = {j["job_id"] for j in results}
-        seen_ids.update(new_ids)
-        update_manifest("jobstreet", seen_ids)
-        logger.info(f"  \U0001f4cb Manifest diperbarui: +{len(new_ids)} job_id baru (total: {len(seen_ids)})")
     return results
 
 
