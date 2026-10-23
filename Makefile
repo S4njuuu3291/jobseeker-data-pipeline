@@ -1,5 +1,54 @@
 .PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply docker-ecr-login-dev docker-ecr-push-dev tf-dev-plan tf-dev-apply reset-manifest
 
+# Contoh command manual (dokumentasi saja, bukan target/shortcut Make).
+# Jalankan dari root project kecuali bagian SAM; aktifkan environment Python:
+# conda activate basic_dev
+# Konfigurasi bucket/kredensial AWS mengikuti .env atau environment lokal.
+# Pipeline main menulis ke S3; data_reader hanya membaca.
+#
+# Data reader: head 5 baris, jumlah baris, dan rekonsiliasi Bronze/Silver.
+# python src/utils/data_reader.py --date 2026-10-13
+# python src/utils/data_reader.py --help
+#
+# Main: pilih platform; tanpa --keywords memakai default/SCRAPE_KEYWORDS.
+# python -m src.main.main --platform glints
+# python -m src.main.main --platform kalibrr
+# python -m src.main.main --platform jobstreet
+# python -m src.main.main --platform dealls
+# python -m src.main.main --platform techinasia
+# python -m src.main.main --platform glints --keywords "data engineer" "etl"
+# python -m src.main.main --platform all
+# python -m src.main.main --platform all --keywords "data engineer" "etl"
+# python -m src.main.main --help
+# --platform all menjalankan kelima platform secara berurutan.
+# --keywords menerima keyword dengan spasi; main menyesuaikan format per platform.
+#
+# Manifest CLI (platform dapat diganti dengan salah satu dari kelima platform).
+# python -m src.utils.manifest glints read
+# python -m src.utils.manifest glints filter JOB_ID_1 JOB_ID_2
+# update mengganti seluruh manifest dengan ID yang diberikan; tanpa ID = reset kosong.
+# python -m src.utils.manifest glints update JOB_ID_1 JOB_ID_2
+# python -m src.utils.manifest glints update
+# delete menghapus manifest dan meminta konfirmasi interaktif.
+# python -m src.utils.manifest glints delete
+#
+# SAM + Terraform dev: jalankan dari terraform/envs/dev.
+# Memerlukan SAM CLI, Docker, kredensial AWS, dan akses image ECR.
+# terraform.tfvars dibaca otomatis; TF_VAR_env tidak diperlukan.
+# cd terraform/envs/dev
+# Buat event.json di folder tersebut dengan isi: {"platform": "glints"}
+# sam local invoke --hook-name terraform module.base.aws_lambda_function.scraper -e event.json
+# Platform dipilih melalui event.json; kode berasal dari image rujukan Terraform.
+# Untuk kembali ke root project: cd ../../..
+#
+# Docker lokal: build kode lokal tanpa push ECR, jalankan dari root project.
+# docker build -t jobscraper-local .
+# AWS_PROFILE dapat diganti dengan profil lokal yang digunakan.
+# docker run --rm -p 9000:8080 -v "$HOME/.aws:/root/.aws:ro" -e AWS_PROFILE=default -e AWS_DEFAULT_REGION=ap-southeast-1 -e AWS_S3_BUCKET_NAME=jobscraper-bronze-data-8424560-dev jobscraper-local src.entrypoint.handlers.scraper_handler
+# Dari terminal lain, panggil handler (platform dapat diganti):
+# curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations -H 'Content-Type: application/json' -d '{"platform":"glints"}'
+# Handler ditentukan eksplisit karena default CMD Dockerfile masih handler lama.
+#
 # Git shortcuts
 sync-main:
 	@echo "🔄 Syncing with main branch..."
