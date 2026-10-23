@@ -1,6 +1,8 @@
 """Tests for Silver layer storage module."""
 
 import io
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from unittest.mock import patch, MagicMock
 
 import pandas as pd
@@ -239,3 +241,25 @@ class TestUploadToSilver:
         assert object_key.startswith("ingestion_date=")
         assert "job_data_" in object_key
         assert object_key.endswith(".parquet")
+
+
+    @patch("src.silver_layer.storage.now_wib")
+    @patch("src.silver_layer.storage.boto3.client")
+    @patch("src.silver_layer.storage.os.getenv", return_value="test-silver-bucket")
+    def test_rerun_overwrites_same_daily_key(
+        self, mock_getenv, mock_s3_client, mock_now, sample_dataframe
+    ):
+        mock_now.side_effect = [
+            datetime(2026, 10, 13, 11, tzinfo=ZoneInfo("Asia/Jakarta")),
+            datetime(2026, 10, 13, 15, tzinfo=ZoneInfo("Asia/Jakarta")),
+            datetime(2026, 10, 14, 11, tzinfo=ZoneInfo("Asia/Jakarta")),
+        ]
+        first = upload_to_silver(sample_dataframe)
+        rerun = upload_to_silver(sample_dataframe.iloc[:1])
+        next_day = upload_to_silver(sample_dataframe)
+        assert first == rerun == "ingestion_date=2026-10-13/job_data_2026-10-13.parquet"
+        assert next_day == "ingestion_date=2026-10-14/job_data_2026-10-14.parquet"
+        calls = mock_s3_client.return_value.put_object.call_args_list
+        assert [call.kwargs["Key"] for call in calls] == [first, rerun, next_day]
+        replacement = pd.read_parquet(io.BytesIO(calls[1].kwargs["Body"]))
+        assert len(replacement) == 1

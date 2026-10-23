@@ -69,11 +69,10 @@ def get_bronze_object(list_platforms: list[str]) -> pd.DataFrame:
 
 def upload_to_silver(df: pd.DataFrame) -> str:
     """
-    Upload processed dataframe ke Silver S3 bucket dan daftarkan partisinya ke Glue.
+    Upload dataframe ke key tetap per tanggal WIB; rerun mengganti objek yang sama.
 
     Args:
         df: Dataframe yang sudah dibersihkan (Silver data).
-        platform: Nama platform (kalibrr, glints, atau jobstreet).
 
     Returns:
         S3 object key yang berhasil diupload.
@@ -87,10 +86,9 @@ def upload_to_silver(df: pd.DataFrame) -> str:
 
     now = now_wib()
     processed_date = now.strftime("%Y-%m-%d")
-    file_timestamp = now.strftime("%Y%m%d_%H%M%S")
 
     partition_prefix = f"ingestion_date={processed_date}/"
-    object_key = f"{partition_prefix}job_data_{processed_date}_{file_timestamp}.parquet"
+    object_key = f"{partition_prefix}job_data_{processed_date}.parquet"
 
     buffer = io.BytesIO()
     df.to_parquet(buffer, index=False, engine="pyarrow")
