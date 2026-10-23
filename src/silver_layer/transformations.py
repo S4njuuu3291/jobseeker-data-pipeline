@@ -52,11 +52,14 @@ def normalize_location(location: str) -> str:
 def apply_location_normalization(df: pd.DataFrame) -> pd.DataFrame:
     """Apply location normalization to DataFrame."""
     if "location" not in df.columns:
-        df["location"] = "Unknown"
+        df["location"] = None
         return df
-    
-    #  Perbaikan: paksa jadi string dulu, NaN → "Unknown"
-    df["location"] = df["location"].astype(str).fillna("Unknown")
-    df["location"] = df["location"].apply(normalize_location)
-    
+
+    df["location"] = df["location"].map(
+        lambda value: (
+            normalize_location(str(value))
+            if pd.notna(value) and str(value).strip()
+            else None
+        )
+    )
     return df

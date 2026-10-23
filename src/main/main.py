@@ -8,6 +8,18 @@ from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
+
+class PartialScrapeError(RuntimeError):
+    """Successful keywords were persisted, but some searches need a retry."""
+
+    def __init__(self, platform, keywords, uploaded_count):
+        self.uploaded_count = uploaded_count
+        self.failed_keywords = keywords
+        super().__init__(
+            f"{platform}: {uploaded_count} jobs uploaded; failed keywords: {', '.join(keywords)}"
+        )
+
+
 URL_TEMPLATES = {
     "glints": "https://glints.com/id/opportunities/jobs/explore?keyword={keyword}&country=ID&locationName=All+Cities%2FProvinces&lowestLocationLevel=1&sortBy=LATEST",
     "kalibrr": "https://kalibrr.id/id-ID/home/te/{keyword}?sort=Freshness",
@@ -35,7 +47,7 @@ async def run_scraper_pipeline(platform: str, keywords: list[str]) -> int:
 
     # Heavy imports remain lazy for Lambda cold starts.
     import pandas as pd
-    from src.utils.data_validator import validate_job_data
+    from src.utils.data_validator import validate_api_job_data
     from src.utils.manifest import read_manifest, update_manifest
     from src.utils.upload_to_s3 import upload_to_s3
 
@@ -43,12 +55,23 @@ async def run_scraper_pipeline(platform: str, keywords: list[str]) -> int:
     scraper = getattr(module, f"jobscraper_{platform}")
     seen_ids = set(read_manifest(platform))
     records = []
+    failed_keywords = []
 
     for keyword in keywords:
         logger.info("Scraping %s keyword: %s", platform, keyword)
-        jobs = await scraper(
-            build_search_url(platform, keyword), headless=True, seen_ids=seen_ids
-        )
+        try:
+            jobs = await scraper(
+                build_search_url(platform, keyword), headless=True, seen_ids=seen_ids
+            )
+        except RuntimeError as exc:
+            failed_keywords.append(keyword)
+            logger.error(
+                "%s keyword %s failed: %s; continuing other keywords",
+                platform,
+                keyword,
+                exc,
+            )
+            continue
         for job in jobs:
             jid = job.get("job_id")
             if jid and jid in seen_ids:
@@ -58,11 +81,13 @@ async def run_scraper_pipeline(platform: str, keywords: list[str]) -> int:
                 seen_ids.add(jid)
 
     if not records:
+        if failed_keywords:
+            raise PartialScrapeError(platform, failed_keywords, 0)
         logger.info("No new jobs for %s; skipping upload.", platform)
         return 0
 
     df = pd.DataFrame(records).drop_duplicates(subset=["job_id"])
-    df_validated = validate_job_data(df)
+    df_validated = validate_api_job_data(df)
     if not upload_to_s3(df_validated, platform=platform):
         logger.error("Bronze upload failed for %s; manifest unchanged.", platform)
         return 0
@@ -70,6 +95,8 @@ async def run_scraper_pipeline(platform: str, keywords: list[str]) -> int:
     if not update_manifest(platform, seen_ids):
         raise RuntimeError(f"Bronze uploaded but manifest update failed for {platform}")
     logger.info("%s: uploaded %s new jobs.", platform, len(df_validated))
+    if failed_keywords:
+        raise PartialScrapeError(platform, failed_keywords, len(df_validated))
     return len(df_validated)
 
 
@@ -99,6 +126,7 @@ async def run_cli(platform: str, keywords: list[str] | None = None) -> None:
 
     load_dotenv()
     platforms = list(URL_TEMPLATES) if platform == "all" else [platform]
+    partial_failures = []
     for selected in platforms:
         if keywords is None:
             selected_keywords = _get_keywords(PLATFORM_KEYWORDS[selected])
@@ -108,16 +136,31 @@ async def run_cli(platform: str, keywords: list[str] | None = None) -> None:
                 keyword if selected == "techinasia" else keyword.replace(" ", separator)
                 for keyword in keywords
             ]
-        count = await run_scraper_pipeline(selected, selected_keywords)
-        print(f"{selected}: {count} jobs uploaded")
+        try:
+            count = await run_scraper_pipeline(selected, selected_keywords)
+        except PartialScrapeError as exc:
+            partial_failures.append(exc)
+            logger.error("PARTIAL: %s", exc)
+        else:
+            print(f"{selected}: {count} jobs uploaded")
+    if partial_failures:
+        raise SystemExit(1)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run local scraper pipelines and upload to Bronze S3.")
+    parser = argparse.ArgumentParser(
+        description="Run local scraper pipelines and upload to Bronze S3."
+    )
     parser.add_argument("--platform", required=True, choices=[*URL_TEMPLATES, "all"])
-    parser.add_argument("--keywords", nargs="+", help='Override keywords, e.g. --keywords "data engineer" "etl".')
+    parser.add_argument(
+        "--keywords",
+        nargs="+",
+        help='Override keywords, e.g. --keywords "data engineer" "etl".',
+    )
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     asyncio.run(run_cli(args.platform, args.keywords))
 
 

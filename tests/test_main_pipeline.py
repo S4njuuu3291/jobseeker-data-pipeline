@@ -7,7 +7,34 @@ from src.main.main import build_search_url, run_scraper_pipeline
 from src.utils.manifest import filter_new_jobs
 
 
-@pytest.mark.parametrize("platform", ["glints", "kalibrr", "jobstreet", "dealls", "techinasia"])
+@pytest.mark.parametrize(
+    "platform", ["glints", "kalibrr", "jobstreet", "dealls", "techinasia"]
+)
+def test_lambda_handler_uses_canonical_scraper(platform, monkeypatch):
+    from src.entrypoint.handlers import scraper_handler
+
+    monkeypatch.setenv("SCRAPE_KEYWORDS", "etl")
+    with (
+        patch(
+            f"src.scraper.jobscraper_{platform}.jobscraper_{platform}",
+            new=AsyncMock(return_value=[]),
+        ) as scrape,
+        patch("src.utils.manifest.read_manifest", return_value=set()),
+        patch("src.utils.upload_to_s3.upload_to_s3") as upload,
+    ):
+        result = scraper_handler({"platform": platform}, None)
+
+    assert result["statusCode"] == 200
+    assert result["platform"] == platform
+    scrape.assert_awaited_once_with(
+        build_search_url(platform, "etl"), headless=True, seen_ids=set()
+    )
+    upload.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "platform", ["glints", "kalibrr", "jobstreet", "dealls", "techinasia"]
+)
 def test_upload_precedes_manifest_and_keywords_share_seen_ids(platform):
     calls = []
 
@@ -36,10 +63,15 @@ def test_upload_precedes_manifest_and_keywords_share_seen_ids(platform):
         return True
 
     with (
-        patch(f"src.scraper.jobscraper_{platform}.jobscraper_{platform}", side_effect=scrape),
+        patch(
+            f"src.scraper.jobscraper_{platform}.jobscraper_{platform}",
+            side_effect=scrape,
+        ),
         patch("src.utils.manifest.read_manifest", return_value={"old"}) as read,
         patch("src.utils.manifest.update_manifest", side_effect=persist),
-        patch("src.utils.data_validator.validate_job_data", side_effect=lambda df: df),
+        patch(
+            "src.utils.data_validator.validate_api_job_data", side_effect=lambda df: df
+        ),
         patch("src.utils.upload_to_s3.upload_to_s3", side_effect=upload),
     ):
         assert asyncio.run(run_scraper_pipeline(platform, ["first", "second"])) == 1
@@ -47,15 +79,28 @@ def test_upload_precedes_manifest_and_keywords_share_seen_ids(platform):
     assert events == ["upload", "manifest"]
 
 
-@pytest.mark.parametrize("outcome", ["upload_failed", "validation_failed", "empty", "manifest_failed"])
+@pytest.mark.parametrize(
+    "outcome", ["upload_failed", "validation_failed", "empty", "manifest_failed"]
+)
 def test_failed_or_empty_runs_do_not_persist_unsaved_ids(outcome):
     jobs = [] if outcome == "empty" else [{"job_id": "new"}]
     with (
-        patch("src.scraper.jobscraper_glints.jobscraper_glints", new=AsyncMock(return_value=jobs)),
+        patch(
+            "src.scraper.jobscraper_glints.jobscraper_glints",
+            new=AsyncMock(return_value=jobs),
+        ),
         patch("src.utils.manifest.read_manifest", return_value=set()),
         patch("src.utils.manifest.update_manifest", return_value=False) as persist,
-        patch("src.utils.data_validator.validate_job_data", side_effect=ValueError("invalid") if outcome == "validation_failed" else lambda df: df),
-        patch("src.utils.upload_to_s3.upload_to_s3", return_value=outcome != "upload_failed") as upload,
+        patch(
+            "src.utils.data_validator.validate_api_job_data",
+            side_effect=ValueError("invalid")
+            if outcome == "validation_failed"
+            else lambda df: df,
+        ),
+        patch(
+            "src.utils.upload_to_s3.upload_to_s3",
+            return_value=outcome != "upload_failed",
+        ) as upload,
     ):
         if outcome == "validation_failed":
             with pytest.raises(ValueError):
@@ -81,4 +126,63 @@ def test_cards_deduplicate_within_batch_without_mutating_manifest():
 def test_search_urls_preserve_platform_formats():
     assert "query=data%20engineer" in build_search_url("techinasia", "data engineer")
     assert "keyword=data+engineer" in build_search_url("glints", "data+engineer")
-    assert "/data-engineer-jobs?daterange=7" in build_search_url("jobstreet", "data-engineer")
+    assert "/data-engineer-jobs?daterange=7" in build_search_url(
+        "jobstreet", "data-engineer"
+    )
+
+
+def test_failed_keyword_preserves_successful_jobs_before_reporting_partial_failure():
+    from src.main.main import PartialScrapeError
+
+    events = []
+
+    async def scrape(url, **kwargs):
+        if "broken" in url:
+            raise RuntimeError("API returned HTTP 503")
+        return [{"job_id": "new", "company_name": "Example"}]
+
+    def upload(df, platform):
+        assert df.job_id.tolist() == ["new"]
+        events.append("upload")
+        return True
+
+    def persist(platform, ids):
+        assert ids == {"old", "new"}
+        events.append("manifest")
+        return True
+
+    with (
+        patch(
+            "src.scraper.jobscraper_dealls.jobscraper_dealls", side_effect=scrape
+        ),
+        patch("src.utils.manifest.read_manifest", return_value={"old"}),
+        patch("src.utils.manifest.update_manifest", side_effect=persist),
+        patch(
+            "src.utils.data_validator.validate_api_job_data", side_effect=lambda df: df
+        ),
+        patch("src.utils.upload_to_s3.upload_to_s3", side_effect=upload),
+    ):
+        with pytest.raises(PartialScrapeError) as error:
+            asyncio.run(run_scraper_pipeline("dealls", ["working", "broken"]))
+    assert error.value.uploaded_count == 1
+    assert error.value.failed_keywords == ["broken"]
+    assert events == ["upload", "manifest"]
+
+
+def test_all_keywords_failed_do_not_write_manifest_or_claim_no_new_jobs():
+    from src.main.main import PartialScrapeError
+
+    with (
+        patch(
+            "src.scraper.jobscraper_dealls.jobscraper_dealls",
+            side_effect=RuntimeError("HTTP 503"),
+        ),
+        patch("src.utils.manifest.read_manifest", return_value=set()),
+        patch("src.utils.manifest.update_manifest") as persist,
+        patch("src.utils.upload_to_s3.upload_to_s3") as upload,
+    ):
+        with pytest.raises(PartialScrapeError) as error:
+            asyncio.run(run_scraper_pipeline("dealls", ["broken"]))
+    assert error.value.uploaded_count == 0
+    upload.assert_not_called()
+    persist.assert_not_called()

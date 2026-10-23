@@ -265,3 +265,4 @@ archived/
 terraform/envs/dev/.terraform-artifacts/
 
 backup-prod/
+src/scraper/dev-docs/

@@ -52,4 +52,4 @@ COPY src/ ${LAMBDA_TASK_ROOT}/src/
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Default handler (akan di-override oleh image_config.command di Lambda)
-CMD ["src.entrypoint.handlers.kalibrr_handler"]
+CMD ["src.entrypoint.handlers.scraper_handler"]
