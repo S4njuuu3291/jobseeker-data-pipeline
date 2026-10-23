@@ -8,6 +8,7 @@
 #
 # Data reader: head 5 baris, jumlah baris, dan rekonsiliasi Bronze/Silver.
 # python src/utils/data_reader.py --date 2026-10-13
+# python src/utils/data_reader.py --date 2026-10-23 --platform kalibrr --layer bronze
 # python src/utils/data_reader.py --help
 #
 # Main: pilih platform; tanpa --keywords memakai default/SCRAPE_KEYWORDS.
@@ -47,7 +48,7 @@
 # docker run --rm -p 9000:8080 -v "$HOME/.aws:/root/.aws:ro" -e AWS_PROFILE=default -e AWS_DEFAULT_REGION=ap-southeast-1 -e AWS_S3_BUCKET_NAME=jobscraper-bronze-data-8424560-dev jobscraper-local src.entrypoint.handlers.scraper_handler
 # Dari terminal lain, panggil handler (platform dapat diganti):
 # curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations -H 'Content-Type: application/json' -d '{"platform":"glints"}'
-# Handler ditentukan eksplisit karena default CMD Dockerfile masih handler lama.
+# Default CMD Dockerfile juga menggunakan generic scraper_handler.
 #
 # Git shortcuts
 sync-main:
