@@ -108,9 +108,24 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     full_url = f"https://www.techinasia.com{relative_url}"
                     job_id = hashlib.md5(normalize_url(full_url).encode()).hexdigest()
 
+                    # card adalah anchor judul, bukan container listing. Company
+                    # berada di cabang div lain pada container listing yang sama.
+                    # XPath referensi: /html/body/div[1]/div/div[4]/div/div[5]/div/
+                    # div[2]/div/div[1]/div[1]/div[1]/div/div/div/span[1]/a
+                    company_path = "div[1]/div/div/div/span[1]/a"
+                    company_elem = card.locator(
+                        f"xpath=./ancestor::div[{company_path}][1]/{company_path}"
+                    ).first
+                    company_name = "Unknown"
+                    if await company_elem.count():
+                        company_name = (await company_elem.text_content() or "").strip() or "Unknown"
+                    if company_name == "Unknown":
+                        logger.warning("Company kosong/tidak ditemukan pada listing: %s", full_url)
+
                     results.append({
                         "job_id": job_id,
                         "job_title": job_title,
+                        "company_name": company_name,
                         "job_url": full_url,
                         "platform": "techinasia",
                         "scraped_at": timestamp,
@@ -119,6 +134,12 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     logger.warning(f"  Skip card: {e}")
 
             logger.info(f"Terkumpul {len(results)} URL job")
+            print("\nSampel listing TechInAsia (maksimal 3 baris):")
+            for job in results[:3]:
+                print(
+                    f"Title: {job.get('job_title', 'Unknown')} | "
+                    f"Company: {job.get('company_name', 'Unknown')}"
+                )
             return results
 
         finally:

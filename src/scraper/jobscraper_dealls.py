@@ -106,9 +106,16 @@ async def collect_job_cards(url: str, headless: bool = True) -> list:
                     full_url = f"https://dealls.com{relative_url}"
                     job_id = hashlib.md5(normalize_url(full_url).encode()).hexdigest()
 
+                    # Company XPath relatif ke card agar berlaku untuk semua listing.
+                    company_elem = card.locator('xpath=./div/div[1]/div[2]/div[2]/div').first
+                    company_name = "Unknown"
+                    if await company_elem.count():
+                        company_name = (await company_elem.text_content() or "").strip() or "Unknown"
+
                     results.append({
                         "job_id": job_id,
                         "job_title": job_title,
+                        "company_name": company_name,
                         "job_url": full_url,
                         "platform": "dealls",
                         "scraped_at": timestamp,
