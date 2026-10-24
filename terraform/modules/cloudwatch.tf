@@ -62,15 +62,15 @@ resource "aws_cloudwatch_metric_alarm" "pipeline_freshness_sla" {
   evaluation_periods  = 1
   metric_name         = "ExecutionsStarted"
   namespace           = "AWS/States"
-  
-  # Window Evaluasi: 24 Jam (86400 detik)
-  period              = 86400 
-  statistic           = "Sum"
-  threshold           = 1 # Ekspektasi: Minimal ada 1 eksekusi per hari
-  
-  alarm_description   = "CRITICAL: Pipeline tidak berjalan sama sekali dalam 24 jam terakhir! Potensi EventBridge mati atau terhapus."
 
-  treat_missing_data  = "breaching"
+  # Window Evaluasi: 24 Jam (86400 detik)
+  period    = 86400
+  statistic = "Sum"
+  threshold = 1 # Ekspektasi: Minimal ada 1 eksekusi per hari
+
+  alarm_description = "CRITICAL: Pipeline tidak berjalan sama sekali dalam 24 jam terakhir! Potensi EventBridge mati atau terhapus."
+
+  treat_missing_data = "breaching"
 
   dimensions = {
     StateMachineArn = aws_sfn_state_machine.jobscraper_orchestrator.arn
