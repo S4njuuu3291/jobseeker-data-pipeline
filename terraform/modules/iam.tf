@@ -41,7 +41,11 @@ resource "aws_iam_role" "github_actions_role" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = ["repo:S4njuuu3291/job-data-pipeline:*", "repo:S4njuuu3291/jobseeker-data-pipeline:*"]
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:S4njuuu3291/job-data-pipeline:*",
+            "repo:S4njuuu3291/jobseeker-data-pipeline:*",
+            "repo:S4njuuu3291@110361282/jobseeker-data-pipeline@1162177867:*"
+          ]
         }
       }
     }]
