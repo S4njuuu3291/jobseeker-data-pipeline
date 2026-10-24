@@ -37,14 +37,6 @@ resource "aws_lambda_layer_version" "slack_alert_layer" {
   lifecycle { create_before_destroy = true }
 }
 
-data "aws_lambda_function" "legacy_scraper" {
-  function_name = "jobscraper-scraper${local.env_suffix}"
-}
-
-data "aws_lambda_function" "legacy_silver_layer" {
-  function_name = "jobscraper-silver-layer${local.env_suffix}"
-}
-
 resource "aws_lambda_function" "scraper_zip" {
   function_name    = "jobscraper-scraper-zip${local.env_suffix}"
   role             = aws_iam_role.lambda_exec_role.arn
@@ -83,13 +75,6 @@ resource "aws_lambda_function" "scraper_zip" {
     Platform    = "all"
     ManagedBy   = "Terraform"
   }
-}
-
-# Keep the currently orchestrated Image functions during the first ZIP deploy.
-# The next deployment will switch Step Functions to the ZIP function addresses.
-removed {
-  from = aws_lambda_function.scraper
-  lifecycle { destroy = false }
 }
 
 # Resource untuk Silver Layer Transformation
@@ -133,11 +118,6 @@ resource "aws_lambda_function" "silver_layer_zip" {
     Layer       = "Silver"
     ManagedBy   = "Terraform"
   }
-}
-
-removed {
-  from = aws_lambda_function.silver_layer
-  lifecycle { destroy = false }
 }
 
 resource "aws_lambda_function" "slack_alert" {
