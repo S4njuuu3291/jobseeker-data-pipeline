@@ -154,6 +154,21 @@ def test_real_detail_mapping(platform, monkeypatch):
         assert result["salary_period"] == "month"
 
 
+@pytest.mark.parametrize("platform", ["dealls", "glints", "jobstreet"])
+def test_seen_native_id_prevents_detail_requests(platform, monkeypatch):
+    from importlib import import_module
+
+    module = import_module(f"src.scraper.jobscraper_{platform}")
+    row = map_record("glints", glints_job(), "20261024_080000")
+    mock_client(monkeypatch, lambda request: pytest.fail("Seen job requested detail"))
+    with patch.object(module, "collect_job_cards", return_value=[row]):
+        result = asyncio.run(
+            getattr(module, f"jobscraper_{platform}")(
+                "https://example.com/?keyword=data&searchJob=data&keywords=data",
+                seen_ids={"native-1"},
+            )
+        )
+    assert result == []
 
 
 @pytest.mark.parametrize("platform", ["dealls", "glints", "jobstreet"])
@@ -166,3 +181,31 @@ def test_invalid_detail_fails_instead_of_persisting_incomplete_job(
     mock_client(monkeypatch, lambda request: httpx.Response(200, json={"data": {}}))
     with pytest.raises(RuntimeError):
         asyncio.run(enrich_details([row], platform))
+
+
+def test_legacy_hash_is_filtered_without_mutating_manifest():
+    import hashlib
+
+    row = map_record("glints", glints_job(), "20261024_080000")
+    seen = {hashlib.md5(row["job_url"].encode()).hexdigest()}
+    original = seen.copy()
+    assert api.new_records([row], seen) == []
+    assert seen == original
+
+
+def test_manifest_read_failure_does_not_restart_from_empty(monkeypatch):
+    from src.utils.manifest import read_manifest
+
+    monkeypatch.setenv("AWS_S3_BUCKET_NAME", "test-bronze")
+
+    class Client:
+        class exceptions:
+            class NoSuchKey(Exception):
+                pass
+
+        def get_object(self, **kwargs):
+            raise PermissionError("Access denied")
+
+    with patch("boto3.client", return_value=Client()):
+        with pytest.raises(RuntimeError, match="scraping dibatalkan"):
+            read_manifest("glints")

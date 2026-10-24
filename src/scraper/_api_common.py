@@ -154,7 +154,13 @@ def positive_pages(max_pages):
 def new_records(records, seen_ids):
     from src.utils.manifest import filter_new_jobs
 
-    return filter_new_jobs(records, seen_ids if seen_ids is not None else set())
+    seen_ids = seen_ids if seen_ids is not None else set()
+    # During migration recognize legacy URL hashes as well as native IDs.
+    records = [
+        row for row in records
+        if hashlib.md5(row["job_url"].encode()).hexdigest() not in seen_ids
+    ]
+    return filter_new_jobs(records, seen_ids)
 
 
 async def listing_details(results, platform):
