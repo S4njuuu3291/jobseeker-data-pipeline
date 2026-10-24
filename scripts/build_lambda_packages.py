@@ -27,7 +27,7 @@ LAYERS = {
 
 def archive(source, destination):
     with zipfile.ZipFile(
-        destination, "w", zipfile.ZIP_DEFLATED, compresslevel=9
+        destination, "w", zipfile.ZIP_DEFLATED, compresslevel=6
     ) as output:
         for path in sorted(source.rglob("*")):
             if path.is_file():
@@ -38,7 +38,7 @@ def archive(source, destination):
                 )
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o100644 << 16
-                output.writestr(info, path.read_bytes(), compresslevel=9)
+                output.writestr(info, path.read_bytes(), compresslevel=6)
 
 
 def prune(target):
@@ -52,6 +52,29 @@ def prune(target):
     # pandas/Arrow. Drop them to leave headroom below Lambda's 250 MB limit.
     for directory in ("pyarrow/include", "pyarrow/src", "numpy/_core/include"):
         shutil.rmtree(target / directory, ignore_errors=True)
+    # Keep only service models used by this pipeline, plus STS for credentials.
+    services = {"s3", "ssm", "sts", "athena", "glue", "kms"}
+    models = target / "botocore/data"
+    if models.exists():
+        for service in models.iterdir():
+            if service.is_dir() and service.name not in services:
+                shutil.rmtree(service)
+    # Arrow Flight is unused by pandas/Parquet. Keep Substrait, dataset,
+    # compute and Acero libraries: libarrow_python links against them.
+    arrow = target / "pyarrow"
+    for pattern in ("*flight*",):
+        for path in arrow.glob(pattern):
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+    # Strip debug/local symbols; retain dynamic symbols needed by the loader.
+    strip = shutil.which("strip")
+    if not strip:
+        raise RuntimeError("GNU strip is required to build lean Linux layers")
+    for path in target.rglob("*"):
+        if path.is_file() and ".so" in path.name:
+            subprocess.run([strip, "--strip-unneeded", str(path)], check=True)
     # Preserve dist-info, timezone data and all Parquet runtime libraries.
 
 
