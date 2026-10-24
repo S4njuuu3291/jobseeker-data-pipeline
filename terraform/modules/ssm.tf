@@ -46,8 +46,3 @@ resource "aws_ssm_parameter" "scraper_credentials" {
   lifecycle { ignore_changes = [value] }
   tags = { Environment = var.env, Project = "Job-Scraper", ManagedBy = "Terraform" }
 }
-
-data "aws_ssm_parameter" "deepseek_api_key" {
-  name = aws_ssm_parameter.deepseek_api_key.name
-  depends_on = [aws_ssm_parameter.deepseek_api_key]
-}
