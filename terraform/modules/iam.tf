@@ -302,7 +302,9 @@ resource "aws_iam_policy" "slack_s3_policy" {
         ]
         Resource = [
           data.aws_s3_bucket.athena_query_results.arn,
-          "${data.aws_s3_bucket.athena_query_results.arn}/*"
+          "${data.aws_s3_bucket.athena_query_results.arn}/*",
+          aws_s3_bucket.silver.arn,
+          "${aws_s3_bucket.silver.arn}/*"
         ]
       }
     ]
