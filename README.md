@@ -16,13 +16,13 @@ Fully automated data pipeline that scrapes job postings from multiple platforms,
 
 ## What It Does
 
-**Ingests** job postings from 3 platforms → **Parses** job descriptions with AI (DeepSeek-V4-Flash) → **Transforms** via medallion layers → **Queries** with Athena → **Alerts** via Slack
+**Ingests** job postings from 5 platforms → **Parses** job descriptions with AI (DeepSeek-V4-Flash) → **Transforms** via medallion layers → **Queries** with Athena → **Alerts** via Slack
 
 ### Data Pipeline
 
 | Layer | What | Where | Format | Retention |
 |-------|------|-------|--------|-----------|
-| **Bronze** | Raw scraped data | S3 `jobscraper-bronze-data` | JSON | 30 days |
+| **Bronze** | 24 source-mapped columns | S3 `jobscraper-bronze-data-8424560[-dev]` | Parquet | See bucket policy |
 | **Silver** | Cleaned, validated + AI-parsed attributes | S3 `jobscraper-silver-data` | Parquet (partitioned) | 90 days |
 | **Gold** | Analytics views | Athena `v_job_*` views | SQL queryable | Live |
 | **Dashboard** | Superset BI | `http://localhost:8088` | Charts & Tables | - |
@@ -41,8 +41,8 @@ Project menggunakan arsitektur **multi-environment (dev/prod)** dengan directory
 | **Terraform** | `terraform/envs/prod/` | `terraform/envs/dev/` |
 | **State file** | `terraform.tfstate` | `dev/terraform.tfstate` |
 | **S3 bucket** | `jobscraper-bronze-data` | `jobscraper-bronze-data-dev` |
-| **Lambda** | `jobscraper-scraper` | `jobscraper-scraper-dev` |
-| **ECR repo** | `job-scraper-lambda` | `job-scraper-lambda-dev` |
+| **Lambda ZIP** | `jobscraper-scraper-zip` | `jobscraper-scraper-zip-dev` |
+| **Layers** | Shared data + Bronze/Silver dependencies | Same layers with `-dev` suffix |
 | **Glue DB** | `jobscraper_db` | `jobscraper_db_dev` |
 | **CI/CD trigger** | Push ke `main` | Push ke `dev` |
 
@@ -57,71 +57,26 @@ Pipeline otomatis via GitHub Actions (`.github/workflows/ci-cd.yml`):
 | `main` | Prod — deploy ke `terraform/envs/prod/` |
 | `dev` | Dev — deploy ke `terraform/envs/dev/` |
 
-Setiap deploy terdiri dari 3 phase:
-1. **Phase 1:** Terraform apply — infra + Lambda
-2. **Phase 2:** Build & push Docker image ke ECR
-3. **Phase 3:** Terraform apply — update Lambda dengan image baru
+Alur CI/CD: unit tests → Linux ZIP/layers build → isolated import/Parquet smoke tests
+→ size limit check → Terraform validate → OIDC → Terraform plan/apply → Athena views.
+Tidak ada Docker build atau push ECR. PR menjalankan pemeriksaan tanpa deploy.
+
+Lihat [mekanisme lengkap ZIP + Layers](docs/lambda-zip-deployment.md) untuk nama fungsi,
+isi layer, SSM secrets, migrasi Image → ZIP, dan alur sampai data siap diquery.
 
 ## Execution Flow
 
-```
-EventBridge (Scheduled: 9 AM & 4 PM WIB)
-    ↓
-Step Functions State Machine
-    ├─ Kalibrr Scraper (Parallel)
-    ├─ Glints Scraper (Parallel)
-    └─ JobStreet Scraper (Parallel)
-    ↓ (wait all scrapers)
-Silver Layer Transformation
-    ├─ AI Parsing (DeepSeek-V4-Flash) — extract salary, skills, seniority, etc.
-    ├─ Validate & deduplicate
-    ├─ Normalize fields
-    └─ Store as Parquet (partitioned by date)
-    ↓
-Slack Alert Lambda
-    ├─ Query new jobs from Athena
-    ├─ Format message with job details
-    └─ Send to Slack webhook
-    ↓
-Success
+```text
+EventBridge (11:00 & 16:00 WIB)
+  → Step Functions: 5 parallel invocations of Bronze Lambda ZIP
+    [data layer + bronze layer]
+  → S3 Bronze Parquet (24 columns) + native-ID manifests
+  → Silver Lambda ZIP [data layer + silver layer]
+  → S3 Silver Parquet
+  → Glue table + partition projection → Athena SQL views → Superset
+  → Slack Lambda ZIP [slack layer] queries Athena and sends a notification
 ```
 
-### Real Execution Example
-
-Last successful run with metrics:
-
-| Task | Type | Status | Duration | Timeline |
-|------|------|--------|----------|----------|
-| **kalibrr-scraper** | Lambda |  Succeeded | 31.5s | 00:00:00 |
-| **glints-scraper** | Lambda |  Succeeded | 44.0s | 00:00:00 |
-| **jobstreet-scraper** | Lambda |  Succeeded | 53.7s | 00:00:00 |
-| **ScrapersParallel** | Parallel |  Succeeded | 53.7s | (all parallel) |
-| **SilverLayerTransform** | Lambda |  Succeeded | 7.3s | 00:00:53 |
-| **SlackAlertNotification** | Lambda |  Succeeded | 3.6s | 01:00:00 |
-| **Total Pipeline** | State Machine |  Succeeded | **64.6s** | - |
-
-**Key Metrics:**
-- ⚡ Parallel execution reduces total time (3 scrapers × 45s avg = ~45s instead of 135s)
--  Silver layer processes data in 7.3s
--  Slack notification sent in < 4 seconds
--  End-to-end pipeline: **~65 seconds**
-
-### Job Collection Statistics
-
-Typical run collects across all platforms:
-
-| Platform | Scraped | New | Re-post | Processing Time |
-|----------|---------|-----|---------|-----------------|
-| **Glints** | 3 | 2 | 1 | 31.5s |
-| **JobStreet** | 4 | 4 | 0 | 44.0s |
-| **Kalibrr** | 2 | 1 | 1 | 53.7s |
-| **Total** | **9** | **7** | **2** | **53.7s** |
-
-### Step Functions Graph View
-
-<img src="img/graph-view-step-function.png" alt="Step Functions Graph" width="550" height="auto" />
-
-**Flow:** EventBridge trigger → 3x Scrapers (parallel) → Silver validation → Slack alert → Success. Failure → DLQ for investigation.
 
 ## Project Structure
 
@@ -149,7 +104,7 @@ job-data-pipeline/
 │   │   ├── lambda.tf             # Lambda functions
 │   │   ├── iam.tf                # IAM roles & policies
 │   │   ├── storage.tf            # S3 buckets
-│   │   ├── ecr.tf                # ECR repositories
+│   │   ├── ecr.tf                # Non-destructive retirement of legacy ECR
 │   │   ├── catalog.tf            # Glue Catalog
 │   │   ├── orchestration.tf      # Step Functions
 │   │   ├── monitoring.tf         # CloudWatch
@@ -182,9 +137,9 @@ job-data-pipeline/
 | **Slack Alert** | 512MB | 1min | 3.6s | ~0.2s | 1 |
 
 **Scraper Details:**
-- Use Playwright with stealth plugins to bypass anti-bot detection
+- Use listing APIs and HTTP detail requests; no browser driver
 - Target keywords: `data-engineer-intern`, `etl-developer-intern`, `big-data-intern`, `bi-engineer-intern`
-- Container image stored in ECR (Amazon Linux 2, Python 3.12)
+- Python 3.12 ZIP + dependency layers, published through an S3 artifact bucket
 - Retry policy: 2 attempts with exponential backoff
 - Dead Letter Queue enabled for failed invocations
 
@@ -242,7 +197,7 @@ Job descriptions from all platforms are parsed using **DeepSeek-V4-Flash** to ex
 **Incremental Processing (Job ID Dedup):**
 - At the scraper level, each job receives a `job_id` (MD5 hash of the normalized job URL)
 - Before scraping details, the scraper reads a Parquet manifest at `manifests/<platform>/job_ids.parquet` in the Bronze bucket
-- If `job_id` exists → skip entirely (no Playwright request, no downstream processing)
+- If `job_id` exists → skip entirely (no detail request, no downstream processing)
 - Only new jobs proceed to Bronze → Silver → AI parsing
 - **Impact:** Eliminates 80–90% of redundant scraping daily; AI costs stay at **~Rp 300-500/day**
 
@@ -266,7 +221,7 @@ Every day at 9 AM & 4 PM WIB, you receive a formatted Slack notification:
 
 ```
 job_id (hash)      | job_title         | company_name      | location
-job_url            | platform          | scraped_at        | keyword  
+job_url            | platform          | scraped_at        | keyword
 discovery_type     | [normalized fields]
 
 # AI-parsed fields (via DeepSeek-V4-Flash):
@@ -276,14 +231,15 @@ skills (JSON arr)  | benefits (JSON)   | experience_min    | experience_max
 education          | company_industry  | posting_date
 ```
 
-**Bronze**: Raw JSON from scrapers  
+**Bronze**: Source-mapped 24-column Parquet from API/HTTP scrapers
 **Silver**: Cleaned Parquet, deduplicated, partitioned by date
 
 ## Quick Start
 
 ### Prerequisites
 ```bash
-Python 3.12, Poetry, Terraform ≥1.0, Docker, AWS CLI, GitHub account
+Python 3.12, Poetry, Terraform ≥1.7, AWS CLI, GitHub account
+Docker is optional for the local Superset dashboard.
 ```
 
 ### 1. Clone & Install
@@ -291,7 +247,7 @@ Python 3.12, Poetry, Terraform ≥1.0, Docker, AWS CLI, GitHub account
 git clone https://github.com/S4njuuu3291/job-data-pipeline.git
 cd job-data-pipeline
 poetry install
-poetry run playwright install chromium
+python scripts/build_lambda_packages.py
 ```
 
 ### 2. Configure AWS & Secrets
@@ -299,26 +255,22 @@ poetry run playwright install chromium
 aws configure  # Set region: ap-southeast-1
 ```
 
-GitHub Secrets (Settings → Secrets → Actions):
-- `SLACK_WEBHOOK_URL`: Your Slack webhook (optional, defaults to SSM Parameter)
-- `DEEPSEEK_API_KEY`: DeepSeek API key for AI job parsing (stored in SSM Parameter Store)
-
-AWS SSM Parameter Store:
-- `/jobscraper/DEEPSEEK_API_KEY`: DeepSeek API key (used by Silver Layer Lambda)
+GitHub Actions authenticates to AWS through OIDC. Runtime secrets are read from
+SSM SecureString; see [the exact prod/dev paths](docs/lambda-zip-deployment.md#secrets-dan-migrasi).
+Populate the Glints cookie, Tech in Asia key, DeepSeek key, and Slack webhook before invoking.
 
 ### 3. Deploy
 
+Push `dev` for development or `main` for production. Alternatively use workflow
+`CI/CD` → Run workflow → choose `dev` or `prod`.
+
+For a local review (no AWS changes):
+
 ```bash
-# Prod (existing infra)
-make tf-prod-apply
-
-# Dev (build & push image dulu)
-make docker-ecr-push-dev
-make tf-dev-apply
-
-# Manual:
-# Prod: cd terraform/envs/prod && terraform apply -var-file=terraform.tfvars --auto-approve
-# Dev:  cd terraform/envs/dev  && terraform apply -var-file=terraform.tfvars --auto-approve
+conda activate basic_dev
+python scripts/build_lambda_packages.py
+terraform -chdir=terraform/envs/dev init
+terraform -chdir=terraform/envs/dev plan -var='env=dev'
 ```
 
 Terraform will:
@@ -357,7 +309,7 @@ cat /tmp/response.json
 
 ### Query Results (Athena)
 ```sql
-SELECT platform, COUNT(*) as job_count, COUNT(DISTINCT discovery_type) 
+SELECT platform, COUNT(*) as job_count, COUNT(DISTINCT discovery_type)
 FROM jobscraper_db.jobscraper_silver_table
 WHERE ingestion_date = '2026-03-06'
 GROUP BY platform;
@@ -432,14 +384,14 @@ make init-superset
 - **IAM least privilege**: Each Lambda role has minimal permissions
 - **SSM Parameter Store**: Slack webhook encrypted (SecureString)
 - **S3 public access**: Block all enabled
-- **ECR**: Image scanning on push
+- **Lambda packages**: isolated native-dependency smoke tests and size checks
 
 ## Cost
 
 **~$0.15/month** within AWS Free Tier:
 - Lambda: 180 invocations/month × 2 seconds ~ $0.00
 - S3: ~5 GB storage, <100 requests ~ $0.00
-- ECR: 1 image @ 500MB ~ $0.10
+- S3 deployment artifacts: storage depends on retained ZIP versions; legacy ECR images are kept for rollback.
 - Athena/Glue: Under free tier limits ~ $0.00
 - EventBridge: Always free
 
@@ -454,5 +406,5 @@ MIT - See [LICENSE](LICENSE)
 
 ---
 
-**Made with ❤️ by Sanju**  
- 
+**Made with ❤️ by Sanju**
+
