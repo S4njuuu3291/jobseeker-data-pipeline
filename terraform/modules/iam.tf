@@ -3,6 +3,7 @@
 # =========================================================
 
 data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 
 # =========================================================
 #              GITHUB OIDC PROVIDER FOR CI/CD
@@ -532,9 +533,9 @@ resource "aws_iam_policy" "step_functions_policy" {
         Effect = "Allow"
         Action = ["lambda:InvokeFunction"]
         Resource = [
-          "${aws_lambda_function.scraper.arn}:*",
-          "${aws_lambda_function.silver_layer.arn}:*",
-          "${aws_lambda_function.slack_alert.arn}:*"
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-scraper-zip${local.env_suffix}:*",
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-silver-layer-zip${local.env_suffix}:*",
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-slack-alert${local.env_suffix}:*"
         ]
       },
       {
