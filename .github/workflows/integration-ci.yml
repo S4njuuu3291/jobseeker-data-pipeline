@@ -1,0 +1,28 @@
+name: Integration checks
+on:
+  pull_request:
+    branches: ['integration/**']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      platform: kalibrr,glints,jobstreet,dealls,techinasia
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_DEFAULT_REGION: ap-southeast-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pip install poetry==2.1.4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: integration-${{ runner.os }}-py312-${{ hashFiles('poetry.lock') }}
+      - name: Install dependencies
+        run: poetry install --with dev --no-interaction
+      - name: Run offline tests
+        run: poetry run pytest tests --tb=short

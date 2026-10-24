@@ -265,3 +265,6 @@ archived/
 terraform/envs/dev/.terraform-artifacts/
 
 backup-prod/
+src/scraper/dev-docs/
+# Generated Linux Lambda packages and isolated build dependencies
+.lambda-build/
