@@ -131,3 +131,10 @@ class TestApplyLocationNormalization:
 
         assert len(result) == 0
         assert "location" in result.columns
+
+
+def test_null_locations_remain_missing():
+    df = pd.DataFrame({'location': [None, float('nan'), pd.NA, '', 'bandung']})
+    result = apply_location_normalization(df)
+    assert result.location.iloc[:4].isna().all()
+    assert result.location.iloc[4] == 'Bandung'
