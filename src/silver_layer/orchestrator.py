@@ -221,16 +221,24 @@ def parse_jobs_parallel(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
 def transform_silver(df: pd.DataFrame) -> str:
     logger.info(f"Processing {len(df)} records")
+    df = df.reset_index(drop=True).copy()
     
     parsed_results = parse_jobs_parallel(df)
     
     df_parsed = pd.DataFrame(parsed_results)
     df_parsed = df_parsed.drop(columns=["_row_idx", "_parse_success"], errors="ignore")
-    df_parsed = df_parsed.drop(columns=["job_title", "company_name"], errors="ignore")
-    if "company_name" not in df.columns:
-        df["company_name"] = "Unknown"
-    
-    df = pd.concat([df, df_parsed], axis=1)
+    if len(df_parsed) != len(df):
+        raise ValueError("AI result count does not match Bronze row count")
+    for column in df_parsed.columns:
+        if column in df.columns:
+            # Source values win; enrich only missing/blank cells, without
+            # creating duplicate labels or aligning against a stale row index.
+            missing = df[column].isna() | df[column].map(
+                lambda value: isinstance(value, str) and not value.strip()
+            )
+            df[column] = df[column].mask(missing).combine_first(df_parsed[column])
+        else:
+            df[column] = df_parsed[column]
     logger.info(f"AI parsing completed for {len(parsed_results)} records")
     
     df = apply_location_normalization(df)
