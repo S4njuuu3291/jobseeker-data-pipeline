@@ -127,6 +127,12 @@ def silver_layer_handler(event, context):
     print("Memicu Lambda Silver Layer...")
     try:
         result = lambda_handler(event, context)
+        if result.get("statusCode", 500) >= 400:
+            # Step Functions retries/stops on a Lambda failure, not on a
+            # statusCode buried inside an otherwise successful response.
+            raise RuntimeError(
+                "Silver transformation failed; see Silver CloudWatch logs"
+            )
         return result
     except Exception as e:
         print(f"Error di Lambda Silver Layer: {e}")

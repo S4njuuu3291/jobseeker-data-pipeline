@@ -46,3 +46,22 @@ def test_platform_without_credentials_does_not_call_ssm():
         patch("src.main.main.run_dealls_pipeline", new=AsyncMock(return_value=2)),
     ):
         assert scraper_handler({"platform": "dealls"}, None)["statusCode"] == 200
+
+
+def test_silver_error_response_is_a_lambda_failure(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    with patch(
+        "src.silver_layer.main.lambda_handler", return_value={"statusCode": 500}
+    ):
+        with pytest.raises(RuntimeError, match="Silver transformation failed"):
+            silver_layer_handler({}, None)
+
+
+def test_silver_success_is_returned(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    response = {
+        "statusCode": 200,
+        "object_key": "ingestion_date=2026-10-24/data.parquet",
+    }
+    with patch("src.silver_layer.main.lambda_handler", return_value=response):
+        assert silver_layer_handler({}, None) == response
