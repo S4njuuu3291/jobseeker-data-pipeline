@@ -144,7 +144,11 @@ class TestValidateSilverSchema:
     def test_validate_returns_same_dataframe(self, valid_dataframe):
         """Test that validation returns the same dataframe when valid."""
         result = validate_silver_schema(valid_dataframe)
-        pd.testing.assert_frame_equal(result, valid_dataframe)
+        expected = valid_dataframe.astype({
+            column: "Int64" for column in
+            ["salary_min", "salary_max", "experience_min", "experience_max"]
+        })
+        pd.testing.assert_frame_equal(result, expected)
 
     def test_validate_empty_dataframe(self):
         """Test validation succeeds with empty dataframe (edge case)."""

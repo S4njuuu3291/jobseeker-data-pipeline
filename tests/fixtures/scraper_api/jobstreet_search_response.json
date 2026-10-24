@@ -1,0 +1,107 @@
+{
+  "data": [
+    {
+      "salaryLabel": "",
+      "workTypes": [
+        "Contract/Temp"
+      ],
+      "workArrangements": {
+        "data": [
+          {
+            "id": "1",
+            "label": {
+              "text": "On-site"
+            }
+          }
+        ]
+      },
+      "id": "900001",
+      "title": "Data Engineer",
+      "companyName": "Example Company 1",
+      "advertiser": {
+        "id": "1",
+        "description": "Example Company 1"
+      },
+      "locations": [
+        {
+          "label": "Jakarta",
+          "countryCode": "ID",
+          "seoHierarchy": [
+            {
+              "contextualName": "Jakarta"
+            }
+          ]
+        }
+      ],
+      "teaser": "Build reliable data pipelines with Python and SQL.",
+      "bulletPoints": [
+        "Maintain ETL pipelines",
+        "Improve data quality"
+      ],
+      "classifications": [
+        {
+          "classification": {
+            "id": "1",
+            "description": "Information Technology"
+          },
+          "subclassification": {
+            "id": "2",
+            "description": "Data Engineering"
+          }
+        }
+      ]
+    },
+    {
+      "salaryLabel": "",
+      "workTypes": [
+        "Contract/Temp"
+      ],
+      "workArrangements": {
+        "data": [
+          {
+            "id": "1",
+            "label": {
+              "text": "On-site"
+            }
+          }
+        ]
+      },
+      "id": "900002",
+      "title": "Senior Data Engineer",
+      "companyName": "Example Company 2",
+      "advertiser": {
+        "id": "2",
+        "description": "Example Company 2"
+      },
+      "locations": [
+        {
+          "label": "Jakarta",
+          "countryCode": "ID",
+          "seoHierarchy": [
+            {
+              "contextualName": "Jakarta"
+            }
+          ]
+        }
+      ],
+      "teaser": "Build reliable data pipelines with Python and SQL.",
+      "bulletPoints": [
+        "Maintain ETL pipelines",
+        "Improve data quality"
+      ],
+      "classifications": [
+        {
+          "classification": {
+            "id": "1",
+            "description": "Information Technology"
+          },
+          "subclassification": {
+            "id": "2",
+            "description": "Data Engineering"
+          }
+        }
+      ]
+    }
+  ],
+  "totalCount": 215
+}

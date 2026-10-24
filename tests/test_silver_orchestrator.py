@@ -214,3 +214,56 @@ class TestRunPipeline:
         assert result["statusCode"] == 500
         assert "failed" in result["message"].lower()
         assert "error" in result
+
+
+def test_bronze_columns_win_and_ai_only_fills_missing_values():
+    bronze = pd.DataFrame({
+        'job_id': ['a', 'b', 'c'],
+        'job_title': ['Data Engineer'] * 3,
+        'company_name': ['Source company', None, ''],
+        'location': ['south jakarta', None, None],
+        'salary_min': [0, None, None],
+        'skills': ['["SQL"]', None, None],
+    }, index=[4, 8, 12])
+    parsed = [
+        {'job_title': 'AI title', 'company_name': 'AI company', 'location': 'Bandung', 'salary_min': 999, 'skills': ['Python']},
+        {'company_name': 'Enriched company', 'location': 'surabaya', 'salary_min': 100, 'skills': ['Python']},
+        {'company_name': None, 'location': None, 'salary_min': None, 'skills': None},
+    ]
+    with (
+        patch('src.silver_layer.orchestrator.parse_jobs_parallel', return_value=parsed),
+        patch('src.silver_layer.orchestrator.validate_silver_schema', side_effect=lambda df: df),
+        patch('src.silver_layer.orchestrator.upload_to_silver', return_value='silver.parquet') as upload,
+    ):
+        assert transform_silver(bronze) == 'silver.parquet'
+    result = upload.call_args.args[0]
+    assert result.columns.is_unique
+    assert result.job_id.tolist() == ['a', 'b', 'c']
+    assert result.job_title.tolist() == ['Data Engineer'] * 3
+    assert result.company_name.iloc[0] == 'Source company'
+    assert result.company_name.iloc[1] == 'Enriched company'
+    assert result.location.iloc[0] == 'Jakarta Selatan'
+    assert result.location.iloc[1] == 'Surabaya'
+    assert pd.isna(result.location.iloc[2])
+    assert result.salary_min.iloc[0] == 0
+    assert result.salary_min.iloc[1] == 100
+    assert pd.isna(result.salary_min.iloc[2])
+    assert result.skills.iloc[0] == '["SQL"]'
+    assert result.skills.iloc[1] == '["Python"]'
+    assert bronze.index.tolist() == [4, 8, 12]
+
+
+def test_full_bronze_schema_with_nulls_passes_real_silver_validation():
+    from src.scraper._bronze import FIELDS
+    row = dict.fromkeys(FIELDS)
+    row.update(job_id='native-id', job_title='Data Engineer', job_url='https://example.com/job/1', platform='glints', scraped_at='20261024_080000', keyword='data engineer')
+    with (
+        patch('src.silver_layer.orchestrator.parse_jobs_parallel', return_value=[{'location': None, 'salary_min': None}]),
+        patch('src.silver_layer.orchestrator.upload_to_silver', return_value='silver.parquet') as upload,
+    ):
+        assert transform_silver(pd.DataFrame([row])) == 'silver.parquet'
+    result = upload.call_args.args[0]
+    assert result.columns.is_unique
+    assert len(result.columns) == 24
+    assert pd.isna(result.location.iloc[0])
+    assert pd.isna(result.salary_min.iloc[0])

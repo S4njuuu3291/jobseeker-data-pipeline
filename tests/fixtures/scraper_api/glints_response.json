@@ -1,0 +1,188 @@
+{
+  "data": {
+    "searchJobsV3": {
+      "jobsInPage": [
+        {
+          "workArrangementOption": "REMOTE",
+          "status": "OPEN",
+          "createdAt": "2026-10-22T06:55:30.143237Z",
+          "updatedAt": "2026-10-22T06:56:32.2266Z",
+          "isHot": false,
+          "shouldShowSalary": false,
+          "educationLevel": "BACHELOR_DEGREE",
+          "type": "FULL_TIME",
+          "fraudReportFlag": null,
+          "minYearsOfExperience": 1,
+          "maxYearsOfExperience": 3,
+          "source": "NATIVE",
+          "jobSource": "EMPLOYER",
+          "id": "a072c543-f2ae-5e53-aa67-d0f241b33bc7",
+          "title": "Data Engineer",
+          "isApplied": false,
+          "company": {
+            "id": "638bfd2c-a1aa-578f-9df0-facafe7efd5d",
+            "name": "Example Company 1",
+            "brandName": null,
+            "logo": null,
+            "status": "VERIFIED",
+            "isVIP": false,
+            "IndustryId": 1,
+            "industry": {
+              "id": 1,
+              "name": "Technology"
+            },
+            "verificationTier": null
+          },
+          "country": {
+            "code": "ID",
+            "name": "Indonesia"
+          },
+          "city": null,
+          "citySubDivision": null,
+          "location": {
+            "id": "example-location",
+            "name": "Jakarta",
+            "administrativeLevelName": "City",
+            "formattedName": "Jakarta",
+            "level": 3,
+            "slug": "jakarta",
+            "latitude": 0,
+            "longitude": 0,
+            "parents": [
+              {
+                "id": "example-country",
+                "name": "Indonesia",
+                "administrativeLevelName": "Country",
+                "formattedName": "Indonesia",
+                "level": 1,
+                "slug": "indonesia",
+                "CountryCode": "ID",
+                "parents": null
+              }
+            ]
+          },
+          "skills": [
+            {
+              "skill": {
+                "id": "skill-python",
+                "name": "Python"
+              },
+              "mustHave": true
+            },
+            {
+              "skill": {
+                "id": "skill-sql",
+                "name": "SQL"
+              },
+              "mustHave": true
+            }
+          ],
+          "hierarchicalJobCategory": {
+            "id": "example-category",
+            "level": 3,
+            "name": "Data Engineer",
+            "children": null,
+            "parents": []
+          },
+          "salaries": null
+        },
+        {
+          "workArrangementOption": "ONSITE",
+          "status": "OPEN",
+          "createdAt": "2026-10-22T06:25:29.50312Z",
+          "updatedAt": "2026-10-22T06:25:29.50312Z",
+          "isHot": false,
+          "shouldShowSalary": true,
+          "educationLevel": "DIPLOMA",
+          "type": "CONTRACT",
+          "fraudReportFlag": null,
+          "minYearsOfExperience": 0,
+          "maxYearsOfExperience": 1,
+          "source": "NATIVE",
+          "jobSource": "EMPLOYER",
+          "id": "8113a3d7-f6dc-531f-a554-60cd0edb0300",
+          "title": "Senior Data Engineer",
+          "isApplied": false,
+          "company": {
+            "id": "277fe789-74df-5406-aee1-529745aab25c",
+            "name": "Example Company 2",
+            "brandName": null,
+            "logo": null,
+            "status": "VERIFIED",
+            "isVIP": false,
+            "IndustryId": 1,
+            "industry": {
+              "id": 1,
+              "name": "Technology"
+            },
+            "verificationTier": null
+          },
+          "country": {
+            "code": "ID",
+            "name": "Indonesia"
+          },
+          "city": null,
+          "citySubDivision": null,
+          "location": {
+            "id": "example-location",
+            "name": "Jakarta",
+            "administrativeLevelName": "City",
+            "formattedName": "Jakarta",
+            "level": 3,
+            "slug": "jakarta",
+            "latitude": 0,
+            "longitude": 0,
+            "parents": [
+              {
+                "id": "example-country",
+                "name": "Indonesia",
+                "administrativeLevelName": "Country",
+                "formattedName": "Indonesia",
+                "level": 1,
+                "slug": "indonesia",
+                "CountryCode": "ID",
+                "parents": null
+              }
+            ]
+          },
+          "skills": [
+            {
+              "skill": {
+                "id": "skill-python",
+                "name": "Python"
+              },
+              "mustHave": true
+            },
+            {
+              "skill": {
+                "id": "skill-sql",
+                "name": "SQL"
+              },
+              "mustHave": true
+            }
+          ],
+          "hierarchicalJobCategory": {
+            "id": "example-category",
+            "level": 3,
+            "name": "Data Engineer",
+            "children": null,
+            "parents": []
+          },
+          "salaries": [
+            {
+              "id": "example-salary",
+              "salaryType": "BASIC",
+              "salaryMode": "MONTHLY",
+              "minAmount": 10000000,
+              "maxAmount": 15000000,
+              "CurrencyCode": "IDR"
+            }
+          ]
+        }
+      ],
+      "hasMore": true,
+      "expInfo": ""
+    }
+  },
+  "isAuthenticated": true
+}

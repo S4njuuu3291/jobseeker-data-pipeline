@@ -1,6 +1,7 @@
 """Pipeline orchestration for Silver layer transformations."""
 
 import json
+import os
 import logging
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,7 +18,7 @@ from src.ai.nlp import parse_job
 
 logger = logging.getLogger(__name__)
 
-MAX_WORKERS = 500
+MAX_WORKERS = max(1, int(os.getenv("AI_MAX_WORKERS", "64 ")))
 MAX_RETRIES = 3
 
 
@@ -66,8 +67,6 @@ class RateLimiter:
 
 
 def parse_single_job(row: Dict[str, Any], idx: int, rate_limiter: RateLimiter) -> Dict[str, Any]:
-    rate_limiter.acquire()
-    
     base_delay = 1.0
     
     for attempt in range(MAX_RETRIES):
@@ -77,11 +76,12 @@ def parse_single_job(row: Dict[str, Any], idx: int, rate_limiter: RateLimiter) -
                 row.get("job_description", ""),
                 row.get("job_url", ""),
                 row.get("keyword", ""),
-                False
+                False,
+                request_gate=rate_limiter.acquire,
             )
             
             result["_row_idx"] = idx
-            result["_parse_success"] = True
+            result["_parse_success"] = bool(result.get("parsed_success", False))
             return result
             
         except Exception as e:
@@ -104,7 +104,6 @@ def parse_single_job(row: Dict[str, Any], idx: int, rate_limiter: RateLimiter) -
     return {
         "job_title": row.get("job_title", ""),
         "role": "Unknown",
-        "company_name": "Unknown",
         "location": "Unknown",
         "salary_min": 0,
         "salary_max": 0,
@@ -143,7 +142,7 @@ def parse_jobs_parallel(df: pd.DataFrame) -> List[Dict[str, Any]]:
     
     rows = df.to_dict('records')
     results = [None] * total_rows
-    rate_limiter = RateLimiter(rpm_limit=10000, burst_size=MAX_WORKERS)
+    rate_limiter = RateLimiter(rpm_limit=max(1, int(os.getenv("AI_RPM_LIMIT", "120"))), burst_size=MAX_WORKERS)
     
     success_count = 0
     error_count = 0
@@ -164,10 +163,10 @@ def parse_jobs_parallel(df: pd.DataFrame) -> List[Dict[str, Any]]:
                 result = future.result(timeout=60)
                 results[idx] = result
                 
+                total_tokens += result.get("api_usage_total_tokens", 0)
+                total_cost += result.get("api_cost_usd", 0.0)
                 if result.get("_parse_success", False):
                     success_count += 1
-                    total_tokens += result.get("api_usage_total_tokens", 0)
-                    total_cost += result.get("api_cost_usd", 0.0)
                 else:
                     error_count += 1
                     
@@ -177,7 +176,6 @@ def parse_jobs_parallel(df: pd.DataFrame) -> List[Dict[str, Any]]:
                 results[idx] = {
                     "job_title": rows[idx].get("job_title", ""),
                     "role": "Unknown",
-                    "company_name": "Unknown",
                     "location": "Unknown",
                     "salary_min": 0,
                     "salary_max": 0,
@@ -212,8 +210,8 @@ def parse_jobs_parallel(df: pd.DataFrame) -> List[Dict[str, Any]]:
     elapsed = time.time() - start_time
     
     logger.info(f"Parallel AI parsing completed in {elapsed:.2f}s")
-    logger.info(f"Success: {success_count}/{total_rows} ({success_count/total_rows*100:.1f}%)")
-    logger.info(f"Errors: {error_count}/{total_rows}")
+    logger.info(f"AI success: {success_count}/{total_rows} ({success_count/max(total_rows, 1)*100:.1f}%)")
+    logger.info(f"Fallback/error: {error_count}/{total_rows}")
     logger.info(f"Total tokens: {total_tokens:,}")
     logger.info(f"Est. cost: ${total_cost:.6f} (Rp {total_cost*16000:.2f})")
     logger.info(f"Throughput: {total_rows/elapsed:.2f} jobs/sec")
@@ -223,14 +221,24 @@ def parse_jobs_parallel(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
 def transform_silver(df: pd.DataFrame) -> str:
     logger.info(f"Processing {len(df)} records")
+    df = df.reset_index(drop=True).copy()
     
     parsed_results = parse_jobs_parallel(df)
     
     df_parsed = pd.DataFrame(parsed_results)
     df_parsed = df_parsed.drop(columns=["_row_idx", "_parse_success"], errors="ignore")
-    df_parsed = df_parsed.drop(columns=["job_title"], errors="ignore")
-    
-    df = pd.concat([df, df_parsed], axis=1)
+    if len(df_parsed) != len(df):
+        raise ValueError("AI result count does not match Bronze row count")
+    for column in df_parsed.columns:
+        if column in df.columns:
+            # Source values win; enrich only missing/blank cells, without
+            # creating duplicate labels or aligning against a stale row index.
+            missing = df[column].isna() | df[column].map(
+                lambda value: isinstance(value, str) and not value.strip()
+            )
+            df[column] = df[column].mask(missing).combine_first(df_parsed[column])
+        else:
+            df[column] = df_parsed[column]
     logger.info(f"AI parsing completed for {len(parsed_results)} records")
     
     df = apply_location_normalization(df)
@@ -239,7 +247,7 @@ def transform_silver(df: pd.DataFrame) -> str:
     numeric_columns = ['salary_min', 'salary_max', 'experience_min', 'experience_max']
     for col in numeric_columns:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype("Int64")
     
     list_columns = ['skills', 'benefits']
     for col in list_columns:

@@ -1,5 +1,42 @@
-.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply docker-ecr-login-dev docker-ecr-push-dev tf-dev-plan tf-dev-apply reset-manifest
+.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply lambda-packages tf-dev-plan tf-dev-apply reset-manifest
 
+# Contoh command manual (dokumentasi saja, bukan target/shortcut Make).
+# Jalankan dari root project kecuali bagian SAM; aktifkan environment Python:
+# conda activate basic_dev
+# Konfigurasi bucket/kredensial AWS mengikuti .env atau environment lokal.
+# Pipeline main menulis ke S3; data_reader hanya membaca.
+#
+# Data reader: head 5 baris, jumlah baris, dan rekonsiliasi Bronze/Silver.
+# python src/utils/data_reader.py --date 2026-10-13
+# python src/utils/data_reader.py --help
+#
+# Main: pilih platform; tanpa --keywords memakai default/SCRAPE_KEYWORDS.
+# python -m src.main.main --platform glints
+# python -m src.main.main --platform kalibrr
+# python -m src.main.main --platform jobstreet
+# python -m src.main.main --platform dealls
+# python -m src.main.main --platform techinasia
+# python -m src.main.main --platform glints --keywords "data engineer" "etl"
+# python -m src.main.main --platform all
+# python -m src.main.main --platform all --keywords "data engineer" "etl"
+# python -m src.main.main --help
+# --platform all menjalankan kelima platform secara berurutan.
+# --keywords menerima keyword dengan spasi; main menyesuaikan format per platform.
+#
+# Manifest CLI (platform dapat diganti dengan salah satu dari kelima platform).
+# python -m src.utils.manifest glints read
+# python -m src.utils.manifest glints filter JOB_ID_1 JOB_ID_2
+# update mengganti seluruh manifest dengan ID yang diberikan; tanpa ID = reset kosong.
+# python -m src.utils.manifest glints update JOB_ID_1 JOB_ID_2
+# python -m src.utils.manifest glints update
+# delete menghapus manifest dan meminta konfirmasi interaktif.
+# python -m src.utils.manifest glints delete
+#
+# Deployment: ZIP + layers; no Docker/Chromium/ECR is required for Lambda.
+# python scripts/build_lambda_packages.py
+# terraform -chdir=terraform/envs/dev plan -var='env=dev'
+# See docs/lambda-zip-deployment.md for runtime flow and migration.
+#
 # Git shortcuts
 sync-main:
 	@echo "🔄 Syncing with main branch..."
@@ -28,7 +65,7 @@ mypy:
 
 test:
 	@echo "🧪 Running pytest..."
-	poetry run pytest --tb=short
+	poetry run pytest tests --tb=short
 	@echo "✅ Tests passed!"
 
 ci: fmt lint mypy test
@@ -84,3 +121,7 @@ tf-dev-apply:
 	@echo "🚀 Applying Terraform for dev environment..."
 	cd terraform/envs/dev && terraform apply -auto-approve
 	@echo "✅ Terraform apply complete!"
+
+# Build wheels, source ZIPs and dependency layers; validate native imports/size.
+lambda-packages:
+	poetry run python scripts/build_lambda_packages.py

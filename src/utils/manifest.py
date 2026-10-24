@@ -88,8 +88,9 @@ def read_manifest(platform: str) -> Set[str]:
         logger.info(f" Manifest {platform} belum ada — first run, start fresh")
         return set()
     except Exception as e:
-        logger.warning(f"  Gagal baca manifest {platform}: {e}, start fresh")
-        return set()
+        # An unreadable manifest is not an empty manifest: continuing would
+        # request details again and could overwrite tracking with partial IDs.
+        raise RuntimeError(f"Gagal baca manifest {platform}; scraping dibatalkan") from e
 
 
 def update_manifest(platform: str, seen_ids: Set[str]) -> bool:
@@ -135,17 +136,17 @@ def filter_new_jobs(cards: list[dict], seen_ids: Set[str]) -> list[dict]:
     Returns:
         List job cards yang belum pernah discrape (baru).
     """
-    if not seen_ids:
-        return cards
-
+    batch_seen = set(seen_ids)
     new_cards = []
     skipped = 0
     for card in cards:
         jid = card.get("job_id")
-        if jid and jid in seen_ids:
+        if jid and jid in batch_seen:
             skipped += 1
         else:
             new_cards.append(card)
+            if jid:
+                batch_seen.add(jid)
 
     if skipped:
         logger.info(f"  Skip {skipped} job sudah ada di manifest")

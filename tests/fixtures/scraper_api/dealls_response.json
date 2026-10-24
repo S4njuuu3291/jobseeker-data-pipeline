@@ -1,0 +1,134 @@
+{
+  "data": {
+    "docs": [
+      {
+        "employmentTypes": [
+          "contract"
+        ],
+        "workplaceType": "onSite",
+        "salaryType": "paid",
+        "salaryRange": null,
+        "country": {
+          "id": 102,
+          "name": "Indonesia"
+        },
+        "id": "8d6d72a29cb56df18cae3942",
+        "slug": "data-engineer-example-1",
+        "role": "Data Engineer",
+        "city": {
+          "id": 1,
+          "name": "Jakarta"
+        },
+        "company": {
+          "name": "Example Company 1",
+          "slug": "example-company-1",
+          "sector": "Technology",
+          "insight": {
+            "fundingStage": null,
+            "fundingAmount": null,
+            "benefits": [
+              "professionalDevelopment"
+            ],
+            "workingPolicies": [
+              "onSite"
+            ]
+          }
+        },
+        "candidatePreference": {
+          "lastEducations": [
+            5
+          ],
+          "major": null,
+          "university": null,
+          "minimumGpa": null,
+          "skillIds": [
+            "skill-sql",
+            "skill-python"
+          ],
+          "gender": "No Preference",
+          "age": {
+            "restriction": false,
+            "min": null,
+            "max": null
+          }
+        },
+        "skills": [
+          {
+            "_id": "skill-sql",
+            "name": "SQL"
+          },
+          {
+            "_id": "skill-python",
+            "name": "Python"
+          }
+        ]
+      },
+      {
+        "employmentTypes": [
+          "fullTime"
+        ],
+        "workplaceType": "onSite",
+        "salaryType": "paid",
+        "salaryRange": null,
+        "country": {
+          "id": 102,
+          "name": "Indonesia"
+        },
+        "id": "72634dea250d123ee1decc51",
+        "slug": "data-engineer-example-2",
+        "role": "Senior Data Engineer",
+        "city": {
+          "id": 1,
+          "name": "Jakarta"
+        },
+        "company": {
+          "name": "Example Company 2",
+          "slug": "example-company-2",
+          "sector": "Technology",
+          "insight": {
+            "fundingStage": null,
+            "fundingAmount": null,
+            "benefits": [
+              "professionalDevelopment"
+            ],
+            "workingPolicies": [
+              "onSite"
+            ]
+          }
+        },
+        "candidatePreference": {
+          "lastEducations": [
+            5
+          ],
+          "major": null,
+          "university": null,
+          "minimumGpa": null,
+          "skillIds": [
+            "skill-sql",
+            "skill-python"
+          ],
+          "gender": "No Preference",
+          "age": {
+            "restriction": false,
+            "min": null,
+            "max": null
+          }
+        },
+        "skills": [
+          {
+            "_id": "skill-sql",
+            "name": "SQL"
+          },
+          {
+            "_id": "skill-python",
+            "name": "Python"
+          }
+        ]
+      }
+    ],
+    "totalDocs": 2,
+    "totalPages": 1,
+    "page": 1
+  },
+  "code": 200
+}
