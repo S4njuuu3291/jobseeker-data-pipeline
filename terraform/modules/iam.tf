@@ -533,6 +533,8 @@ resource "aws_iam_policy" "step_functions_policy" {
         Effect = "Allow"
         Action = ["lambda:InvokeFunction"]
         Resource = [
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-scraper${local.env_suffix}:*",
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-silver-layer${local.env_suffix}:*",
           "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-scraper-zip${local.env_suffix}:*",
           "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-silver-layer-zip${local.env_suffix}:*",
           "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-slack-alert${local.env_suffix}:*"
