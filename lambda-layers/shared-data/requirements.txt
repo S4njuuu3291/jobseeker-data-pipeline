@@ -1,0 +1,8 @@
+# Versions of all transitive dependencies are constrained by poetry.lock at build time.
+numpy==2.4.2
+pandas==3.0.1
+pyarrow==23.0.1
+pandera==0.29.0
+boto3==1.42.53
+python-dotenv
+httpx==0.28.1
