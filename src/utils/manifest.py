@@ -88,8 +88,9 @@ def read_manifest(platform: str) -> Set[str]:
         logger.info(f" Manifest {platform} belum ada — first run, start fresh")
         return set()
     except Exception as e:
-        logger.warning(f"  Gagal baca manifest {platform}: {e}, start fresh")
-        return set()
+        # An unreadable manifest is not an empty manifest: continuing would
+        # request details again and could overwrite tracking with partial IDs.
+        raise RuntimeError(f"Gagal baca manifest {platform}; scraping dibatalkan") from e
 
 
 def update_manifest(platform: str, seen_ids: Set[str]) -> bool:
