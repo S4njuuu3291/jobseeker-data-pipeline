@@ -74,11 +74,13 @@ resource "aws_lambda_function" "scraper" {
   tags = {
     Environment = var.env
     Project     = "Job-Scraper"
+    Owner       = "Sanju"
     Platform    = "all"
     ManagedBy   = "Terraform"
   }
 }
 
+# Resource untuk Silver Layer Transformation
 resource "aws_lambda_function" "silver_layer" {
   function_name    = "jobscraper-silver-layer-zip${local.env_suffix}"
   role             = aws_iam_role.lambda_exec_role.arn
