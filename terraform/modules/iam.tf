@@ -41,7 +41,7 @@ resource "aws_iam_role" "github_actions_role" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:S4njuuu3291/job-data-pipeline:*"
+          "token.actions.githubusercontent.com:sub" = ["repo:S4njuuu3291/job-data-pipeline:*", "repo:S4njuuu3291/jobseeker-data-pipeline:*"]
         }
       }
     }]
@@ -576,9 +576,4 @@ resource "aws_iam_policy" "lambda_runtime_secrets" {
 resource "aws_iam_role_policy_attachment" "lambda_runtime_secrets" {
   role       = aws_iam_role.lambda_exec_role.name
   policy_arn = aws_iam_policy.lambda_runtime_secrets.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_ecr" {
-  role       = aws_iam_role.lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
