@@ -247,7 +247,7 @@ def transform_silver(df: pd.DataFrame) -> str:
     numeric_columns = ['salary_min', 'salary_max', 'experience_min', 'experience_max']
     for col in numeric_columns:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype("Int64")
     
     list_columns = ['skills', 'benefits']
     for col in list_columns:

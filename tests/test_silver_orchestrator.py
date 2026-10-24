@@ -247,7 +247,23 @@ def test_bronze_columns_win_and_ai_only_fills_missing_values():
     assert pd.isna(result.location.iloc[2])
     assert result.salary_min.iloc[0] == 0
     assert result.salary_min.iloc[1] == 100
-    assert result.salary_min.iloc[2] == 0
+    assert pd.isna(result.salary_min.iloc[2])
     assert result.skills.iloc[0] == '["SQL"]'
     assert result.skills.iloc[1] == '["Python"]'
     assert bronze.index.tolist() == [4, 8, 12]
+
+
+def test_full_bronze_schema_with_nulls_passes_real_silver_validation():
+    from src.scraper._bronze import FIELDS
+    row = dict.fromkeys(FIELDS)
+    row.update(job_id='native-id', job_title='Data Engineer', job_url='https://example.com/job/1', platform='glints', scraped_at='20261024_080000', keyword='data engineer')
+    with (
+        patch('src.silver_layer.orchestrator.parse_jobs_parallel', return_value=[{'location': None, 'salary_min': None}]),
+        patch('src.silver_layer.orchestrator.upload_to_silver', return_value='silver.parquet') as upload,
+    ):
+        assert transform_silver(pd.DataFrame([row])) == 'silver.parquet'
+    result = upload.call_args.args[0]
+    assert result.columns.is_unique
+    assert len(result.columns) == 24
+    assert pd.isna(result.location.iloc[0])
+    assert pd.isna(result.salary_min.iloc[0])
