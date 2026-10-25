@@ -94,6 +94,25 @@ DLQ bukan pengganti penanganan kegagalan invocation sinkron.
 
 ## Secrets dan migrasi
 
+### Lake Formation untuk deployment view
+
+Settings Lake Formation berlaku untuk satu akun/region dan hanya dikelola oleh
+state prod. State dev melepaskan alamat settings lama tanpa menghapus settings
+AWS (`removed` dengan `destroy = false`), sehingga deploy dev tidak menimpa
+daftar admin prod. Role GitHub Actions menjadi data lake admin untuk mengelola
+grant; identitas admin Slack dev/prod yang digunakan pipeline tetap dipertahankan.
+
+Masing-masing environment mengelola grant database-nya sendiri. Role deployment
+mendapat `CREATE_TABLE`/`DESCRIBE` pada database dan
+`ALTER`/`DESCRIBE`/`DROP`/`SELECT` pada seluruh tabel/view database tersebut,
+termasuk view yang sebelumnya dibuat manual. `SELECT` dapat diteruskan agar
+deployment dapat mengelola akses view. Slack mendapat `DESCRIBE` database serta
+`DESCRIBE`/`SELECT` tabel/view. IAM `AdministratorAccess` saja tidak menggantikan
+grant Lake Formation. Terraform memasang grant sebelum CI menjalankan SQL view.
+
+Untuk migrasi pertama, deploy prod terlebih dahulu agar role deployment terdaftar
+sebagai data lake admin, lalu deploy dev. Setelah itu urutan deploy bebas.
+
 SSM SecureStrings dibaca saat invocation dengan `WithDecryption=True`:
 
 | Pemakai | Parameter prod | Parameter dev |
