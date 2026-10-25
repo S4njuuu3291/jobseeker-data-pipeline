@@ -1,5 +1,8 @@
 # Lazy import untuk handler (tanpa import top-level yang berat)
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Daftar keyword yang ingin kamu scrape secara rutin
 
@@ -100,7 +103,7 @@ def scraper_handler(event, context):
         raise ValueError(f"Unsupported platform: {platform}")
 
     keywords = _get_keywords(PLATFORM_KEYWORDS.get(platform, []))
-    print(f"Scraping platform: {label}")
+    logger.info("Memulai scraping platform: %s", label)
     try:
         result = asyncio.run(runner(keywords))
         return {
@@ -108,8 +111,8 @@ def scraper_handler(event, context):
             "platform": platform,
             "body": f"{label}: {result} data berhasil diproses",
         }
-    except Exception as e:
-        print(f"Error di Lambda {label}: {e}")
+    except Exception:
+        logger.exception("Gagal menjalankan Lambda scraper %s", label)
         raise
 
 
@@ -119,7 +122,7 @@ def silver_layer_handler(event, context):
     _load_runtime_secret("DEEPSEEK_API_KEY")
     from src.silver_layer.main import lambda_handler
 
-    print("Memicu Lambda Silver Layer...")
+    logger.info("Memulai Lambda Silver Layer")
     try:
         result = lambda_handler(event, context)
         if result.get("statusCode", 500) >= 400:
@@ -129,6 +132,6 @@ def silver_layer_handler(event, context):
                 "Silver transformation failed; see Silver CloudWatch logs"
             )
         return result
-    except Exception as e:
-        print(f"Error di Lambda Silver Layer: {e}")
+    except Exception:
+        logger.exception("Gagal menjalankan Lambda Silver Layer")
         raise

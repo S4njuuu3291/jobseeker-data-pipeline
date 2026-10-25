@@ -145,6 +145,8 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
         "glints": {"emoji": "GLINTS 🎯", "color": "#FF6B6B"},
         "jobstreet": {"emoji": "JOBSTREET 💼", "color": "#4ECDC4"},
         "kalibrr": {"emoji": "KALIBRR ⭐", "color": "#FFE66D"},
+        "dealls": {"emoji": "DEALLS 🛒", "color": "#1A535C"},
+        "techinasia": {"emoji": "TECHINASIA 💻", "color": "#FF6B6B"},
     }
 
     blocks = []
