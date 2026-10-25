@@ -102,6 +102,11 @@ reset-manifest:
 	poetry run python -c "import sys; sys.path.insert(0, '.'); from src.utils.manifest import read_manifest, update_manifest; print('before:', len(read_manifest('$(PLATFORM)'))); update_manifest('$(PLATFORM)', set()); print('after:', len(read_manifest('$(PLATFORM)')))"
 	@echo "Manifest $(PLATFORM) reset!"
 
+reset-manifest-all:
+	@echo "Resetting manifest for all platforms..."
+	poetry run python -c "import sys; sys.path.insert(0, '.'); from src.utils.manifest import read_manifest, update_manifest; platforms = ['glints', 'jobstreet', 'kalibrr', 'dealls', 'techinasia']; [update_manifest(p, set()) for p in platforms]; print('All manifests reset!')"
+	@echo "✅ All manifests reset!"
+
 tf-dev-init:
 	@echo "🔧 Initializing Terraform for dev environment..."
 	cd terraform/envs/dev && terraform init

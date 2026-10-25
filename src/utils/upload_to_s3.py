@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 import boto3
 import io
+import logging
 import pandas as pd
 from dotenv import load_dotenv
 import os
@@ -10,6 +11,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def upload_to_s3(df: pd.DataFrame, platform: str):
@@ -30,8 +33,10 @@ def upload_to_s3(df: pd.DataFrame, platform: str):
     if existing_objects.get("KeyCount", 0) > 0:
         for obj in existing_objects["Contents"]:
             s3.delete_object(Bucket=bucket_name, Key=obj["Key"])
-        print(
-            f" Menghapus {existing_objects['KeyCount']} file lama di folder ingestion_date={date_str}")
+        logger.info(
+            "Menghapus %s file lama untuk platform=%s, ingestion_date=%s",
+            existing_objects["KeyCount"], platform, date_str,
+        )
 
     file_key = (
         f"platform={platform}/ingestion_date={date_str}/{platform}_{timestamp}.parquet")
@@ -41,8 +46,8 @@ def upload_to_s3(df: pd.DataFrame, platform: str):
 
     try:
         s3.put_object(Bucket=bucket_name, Key=file_key, Body=parquet_buffer.getvalue())
-        print(f" Data mendarat di: s3://{bucket_name}/{file_key}")
+        logger.info("Data berhasil diunggah ke s3://%s/%s", bucket_name, file_key)
         return True
     except Exception as e:
-        print(f" Gagal upload ke S3: {e}")
+        logger.exception("Gagal mengunggah data ke S3: %s", e)
         return False

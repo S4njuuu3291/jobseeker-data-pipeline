@@ -181,51 +181,51 @@ def delete_manifest(platform: str) -> bool:
         return False
 
 
-if __name__ == "__main__":
-    import sys
+# if __name__ == "__main__":
+#     import sys
 
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+#     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-    if len(sys.argv) < 3:
-        print("Usage:")
-        print("  python manifest.py <platform> read")
-        print("  python manifest.py <platform> update [job_id ...]")
-        print("  python manifest.py <platform> filter <job_id1> <job_id2> ...")
-        print("  python manifest.py <platform> delete")
-        sys.exit(1)
+#     if len(sys.argv) < 3:
+#         print("Usage:")
+#         print("  python manifest.py <platform> read")
+#         print("  python manifest.py <platform> update [job_id ...]")
+#         print("  python manifest.py <platform> filter <job_id1> <job_id2> ...")
+#         print("  python manifest.py <platform> delete")
+#         sys.exit(1)
 
-    platform = sys.argv[1]
-    action = sys.argv[2]
+#     platform = sys.argv[1]
+#     action = sys.argv[2]
 
-    if action == "read":
-        ids = read_manifest(platform)
-        print(f"Total: {len(ids)} job_ids")
-        for jid in sorted(ids):
-            print(f"  {jid}")
+#     if action == "read":
+#         ids = read_manifest(platform)
+#         print(f"Total: {len(ids)} job_ids")
+#         for jid in sorted(ids):
+#             print(f"  {jid}")
 
-    elif action == "update":
-        new_ids = set(sys.argv[3:]) if len(sys.argv) > 3 else set()
-        if new_ids:
-            update_manifest(platform, new_ids)
-            print(f" Manifest {platform} diupdate dengan {len(new_ids)} job_ids")
-        else:
-            update_manifest(platform, set())
-            print(f" Manifest {platform} dibuat (kosong)")
+#     elif action == "update":
+#         new_ids = set(sys.argv[3:]) if len(sys.argv) > 3 else set()
+#         if new_ids:
+#             update_manifest(platform, new_ids)
+#             print(f" Manifest {platform} diupdate dengan {len(new_ids)} job_ids")
+#         else:
+#             update_manifest(platform, set())
+#             print(f" Manifest {platform} dibuat (kosong)")
 
-    elif action == "filter":
-        seen = read_manifest(platform)
-        cards = [{"job_id": jid, "job_title": f"Job-{jid[:8]}"} for jid in sys.argv[3:]]
-        baru = filter_new_jobs(cards, seen)
-        print(f"Dari {len(cards)} card, {len(baru)} baru (sisanya sudah di manifest)")
-        for c in baru:
-            print(f"   {c['job_id']} - {c['job_title']}")
+#     elif action == "filter":
+#         seen = read_manifest(platform)
+#         cards = [{"job_id": jid, "job_title": f"Job-{jid[:8]}"} for jid in sys.argv[3:]]
+#         baru = filter_new_jobs(cards, seen)
+#         print(f"Dari {len(cards)} card, {len(baru)} baru (sisanya sudah di manifest)")
+#         for c in baru:
+#             print(f"   {c['job_id']} - {c['job_title']}")
 
-    elif action == "delete":
-        sure = input(f" Hapus manifest {platform}? (y/N): ").strip().lower()
-        if sure == "y":
-            delete_manifest(platform)
-        else:
-            print(" Dibatalkan")
+#     elif action == "delete":
+#         sure = input(f" Hapus manifest {platform}? (y/N): ").strip().lower()
+#         if sure == "y":
+#             delete_manifest(platform)
+#         else:
+#             print(" Dibatalkan")
 
-    else:
-        print(f" Action tidak dikenal: {action}")
+#     else:
+#         print(f" Action tidak dikenal: {action}")
