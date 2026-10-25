@@ -21,7 +21,7 @@ def import_url():
     ssm = client("ssm")
     try:
         response = ssm.get_parameter(
-            Name="/jobscraper/slack/webhook_url", WithDecryption=True
+            Name=os.getenv("SSM_WEBHOOK_PARAM_NAME", "/jobscraper/slack/webhook_url"), WithDecryption=True
         )
         return response["Parameter"]["Value"]
     except Exception as e:
@@ -41,7 +41,7 @@ def athena_query(
     # Use v_jobscraper_clean view which has ingestion_date and discovery_type columns
     # Lake Formation permissions now granted for the view
     query = f"""
-    SELECT * FROM v_jobscraper_clean
+    SELECT * FROM {os.getenv("ATHENA_VIEW_NAME", "v_jobscraper_clean")}
     WHERE ingestion_date = '{ingestion_date}'
     AND discovery_type = 'NEW'
     """
@@ -51,8 +51,8 @@ def athena_query(
 
     response = athena.start_query_execution(
         QueryString=query,
-        QueryExecutionContext={"Database": "jobscraper_db"},
-        WorkGroup="jobscraper-slack-alert-workgroup",
+        QueryExecutionContext={"Database": os.getenv("AWS_GLUE_DATABASE_NAME", "jobscraper_db")},
+        WorkGroup=os.getenv("ATHENA_WORKGROUP", "jobscraper-slack-alert-workgroup"),
     )
 
     query_id = response["QueryExecutionId"]
@@ -145,6 +145,8 @@ def format_job_blocks(parsed_data: list[dict]) -> list:
         "glints": {"emoji": "GLINTS 🎯", "color": "#FF6B6B"},
         "jobstreet": {"emoji": "JOBSTREET 💼", "color": "#4ECDC4"},
         "kalibrr": {"emoji": "KALIBRR ⭐", "color": "#FFE66D"},
+        "dealls": {"emoji": "DEALLS 🛒", "color": "#1A535C"},
+        "techinasia": {"emoji": "TECHINASIA 💻", "color": "#FF6B6B"},
     }
 
     blocks = []

@@ -7,7 +7,7 @@
 resource "aws_cloudwatch_event_rule" "scrape_morning" {
   name                = "jobscraper-schedule-morning${local.env_suffix}"
   schedule_expression = "cron(0 4 * * ? *)"
-  description         = "Trigger State Machine jam 09:00 WIB - Prime time HR activity (pagi)"
+  description         = "Trigger State Machine jam 11:00 WIB - Prime time HR activity (pagi)"
 
   tags = {
     Environment = var.env
@@ -55,8 +55,8 @@ resource "aws_sfn_state_machine" "jobscraper_orchestrator" {
   role_arn = aws_iam_role.step_functions_role.arn
 
   definition = templatefile("${path.module}/step_functions/JobScraperMachine.asl.json", {
-    scraper_lambda_arn      = aws_lambda_function.scraper.arn
-    silver_layer_lambda_arn = aws_lambda_function.silver_layer.arn
+    scraper_lambda_arn      = aws_lambda_function.scraper_zip.arn
+    silver_layer_lambda_arn = aws_lambda_function.silver_layer_zip.arn
     slack_alert_lambda_arn  = aws_lambda_function.slack_alert.arn
   })
 

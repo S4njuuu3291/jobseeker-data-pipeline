@@ -1,0 +1,2 @@
+openai==1.109.1
+json-repair==0.42.0

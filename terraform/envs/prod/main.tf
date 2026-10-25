@@ -8,8 +8,8 @@
 # ============================================
 
 module "base" {
-  source = "../../modules"
-  alert_email = "sanju329121@gmail.com"
+  source       = "../../modules"
+  alert_email  = "sanju329121@gmail.com"
   env          = var.env
   project_root = abspath("${path.root}/../../..")
 }

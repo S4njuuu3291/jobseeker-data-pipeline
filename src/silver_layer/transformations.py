@@ -12,7 +12,11 @@ def normalize_location(location: str) -> str:
     Returns:
         Normalized location string
     """
-    location = location.lower()
+    if pd.isna(location):
+        return None
+    location = str(location).strip().lower()
+    if not location:
+        return None
 
     # Jakarta districts
     if "jakarta selatan" in location or "south jakarta" in location:
@@ -52,11 +56,9 @@ def normalize_location(location: str) -> str:
 def apply_location_normalization(df: pd.DataFrame) -> pd.DataFrame:
     """Apply location normalization to DataFrame."""
     if "location" not in df.columns:
-        df["location"] = "Unknown"
+        df["location"] = None
         return df
     
-    #  Perbaikan: paksa jadi string dulu, NaN → "Unknown"
-    df["location"] = df["location"].astype(str).fillna("Unknown")
     df["location"] = df["location"].apply(normalize_location)
     
     return df

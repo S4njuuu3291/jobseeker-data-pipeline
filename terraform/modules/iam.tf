@@ -3,6 +3,7 @@
 # =========================================================
 
 data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 
 # =========================================================
 #              GITHUB OIDC PROVIDER FOR CI/CD
@@ -13,7 +14,7 @@ data "tls_certificate" "github" {
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
-  count = var.env != "prod" ? 0 : 1
+  count           = var.env != "prod" ? 0 : 1
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
@@ -28,7 +29,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 resource "aws_iam_role" "github_actions_role" {
   count = var.env != "prod" ? 0 : 1
-  name = "jobscraper-github-actions-role"
+  name  = "jobscraper-github-actions-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -41,7 +42,11 @@ resource "aws_iam_role" "github_actions_role" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:S4njuuu3291/job-data-pipeline:*"
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:S4njuuu3291/job-data-pipeline:*",
+            "repo:S4njuuu3291/jobseeker-data-pipeline:*",
+            "repo:S4njuuu3291@110361282/jobseeker-data-pipeline@1162177867:*"
+          ]
         }
       }
     }]
@@ -297,7 +302,9 @@ resource "aws_iam_policy" "slack_s3_policy" {
         ]
         Resource = [
           data.aws_s3_bucket.athena_query_results.arn,
-          "${data.aws_s3_bucket.athena_query_results.arn}/*"
+          "${data.aws_s3_bucket.athena_query_results.arn}/*",
+          aws_s3_bucket.silver.arn,
+          "${aws_s3_bucket.silver.arn}/*"
         ]
       }
     ]
@@ -360,10 +367,7 @@ resource "aws_iam_role_policy_attachment" "lambda_s3" {
   policy_arn = aws_iam_policy.scraper_s3_write_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_ecr" {
-  role       = aws_iam_role.lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
+
 
 # Attach DLQ policy ke role Lambda
 resource "aws_iam_role_policy_attachment" "lambda_dlq" {
@@ -531,9 +535,9 @@ resource "aws_iam_policy" "step_functions_policy" {
         Effect = "Allow"
         Action = ["lambda:InvokeFunction"]
         Resource = [
-          "${aws_lambda_function.scraper.arn}:*",
-          "${aws_lambda_function.silver_layer.arn}:*",
-          "${aws_lambda_function.slack_alert.arn}:*"
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-scraper-zip${local.env_suffix}:*",
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-silver-layer-zip${local.env_suffix}:*",
+          "arn:${data.aws_partition.current.partition}:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:jobscraper-slack-alert${local.env_suffix}:*"
         ]
       },
       {
@@ -559,4 +563,24 @@ resource "aws_iam_policy" "step_functions_policy" {
 resource "aws_iam_role_policy_attachment" "step_functions_policy" {
   role       = aws_iam_role.step_functions_role.id
   policy_arn = aws_iam_policy.step_functions_policy.arn
+}
+
+resource "aws_iam_policy" "lambda_runtime_secrets" {
+  name = "jobscraper-runtime-secrets${local.env_suffix}"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["ssm:GetParameter"]
+      Resource = concat(
+        [aws_ssm_parameter.deepseek_api_key.arn],
+        [for parameter in aws_ssm_parameter.scraper_credentials : parameter.arn]
+      )
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_runtime_secrets" {
+  role       = aws_iam_role.lambda_exec_role.name
+  policy_arn = aws_iam_policy.lambda_runtime_secrets.arn
 }

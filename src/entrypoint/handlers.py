@@ -1,5 +1,8 @@
 # Lazy import untuk handler (tanpa import top-level yang berat)
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Daftar keyword yang ingin kamu scrape secara rutin
 
@@ -40,6 +43,24 @@ PLATFORM_KEYWORDS = {
 }
 
 
+def _load_runtime_secret(variable: str) -> None:
+    """Fetch only the selected function's secret; never print its value."""
+    if os.getenv(variable):
+        return
+    parameter = os.getenv(f"{variable}_PARAMETER")
+    if not parameter:
+        return  # Local execution can continue using .env as before.
+    import boto3
+
+    response = boto3.client("ssm").get_parameter(Name=parameter, WithDecryption=True)
+    value = response["Parameter"]["Value"].strip()
+    if not value or value == "placeholder":
+        raise ValueError(
+            f"Populate SSM parameter {parameter} before invoking this Lambda"
+        )
+    os.environ[variable] = value
+
+
 def scraper_handler(event, context):
     """Generic Lambda handler untuk semua platform scraper.
 
@@ -53,6 +74,10 @@ def scraper_handler(event, context):
     platform = (event.get("platform") or "").strip().lower()
     if not platform:
         raise ValueError("Missing 'platform' in event payload")
+    if platform == "glints":
+        _load_runtime_secret("GLINTS_COOKIE")
+    elif platform == "techinasia":
+        _load_runtime_secret("TECHINASIA_API_KEY")
 
     if platform == "kalibrr":
         from src.main.main import run_kalibrr_pipeline
@@ -78,7 +103,7 @@ def scraper_handler(event, context):
         raise ValueError(f"Unsupported platform: {platform}")
 
     keywords = _get_keywords(PLATFORM_KEYWORDS.get(platform, []))
-    print(f"Scraping platform: {label}")
+    logger.info("Memulai scraping platform: %s", label)
     try:
         result = asyncio.run(runner(keywords))
         return {
@@ -86,20 +111,27 @@ def scraper_handler(event, context):
             "platform": platform,
             "body": f"{label}: {result} data berhasil diproses",
         }
-    except Exception as e:
-        print(f"Error di Lambda {label}: {e}")
+    except Exception:
+        logger.exception("Gagal menjalankan Lambda scraper %s", label)
         raise
 
 
 # Handler untuk Silver Layer
 def silver_layer_handler(event, context):
     """AWS Lambda handler untuk Silver layer transformation."""
+    _load_runtime_secret("DEEPSEEK_API_KEY")
     from src.silver_layer.main import lambda_handler
 
-    print("Memicu Lambda Silver Layer...")
+    logger.info("Memulai Lambda Silver Layer")
     try:
         result = lambda_handler(event, context)
+        if result.get("statusCode", 500) >= 400:
+            # Step Functions retries/stops on a Lambda failure, not on a
+            # statusCode buried inside an otherwise successful response.
+            raise RuntimeError(
+                "Silver transformation failed; see Silver CloudWatch logs"
+            )
         return result
-    except Exception as e:
-        print(f"Error di Lambda Silver Layer: {e}")
+    except Exception:
+        logger.exception("Gagal menjalankan Lambda Silver Layer")
         raise

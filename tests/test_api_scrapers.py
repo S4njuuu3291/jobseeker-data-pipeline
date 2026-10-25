@@ -1,4 +1,4 @@
-"""Offline contract checks for the temporary listing API adapters."""
+"""Offline contract checks for the listing API scrapers."""
 
 import asyncio
 import copy
@@ -13,8 +13,9 @@ import httpx
 import pandas as pd
 import pytest
 
-from src.main.main import build_search_url
+from src.main.main import build_search_url, run_scraper_pipeline
 from src.scraper import _api_common as api
+from src.scraper._bronze import FIELDS as BRONZE_FIELDS
 from src.utils.data_validator import validate_job_data
 from src.utils.scraper_utils import normalize_url
 
@@ -26,19 +27,11 @@ FILES = {
     "kalibrr": "kalibrr_response.json",
     "techinasia": "techinasia_response.json",
 }
-FIELDS = {
-    "job_id",
-    "job_title",
-    "company_name",
-    "job_url",
-    "platform",
-    "scraped_at",
-    "job_description",
-}
+FIELDS = set(BRONZE_FIELDS)
 
 
 def module(platform):
-    return importlib.import_module(f"src.scraper.jobscraper_{platform}_api")
+    return importlib.import_module(f"src.scraper.jobscraper_{platform}")
 
 
 def fixture(platform):
@@ -56,6 +49,12 @@ def jobs_in(body, platform):
 
 
 def install_mock(monkeypatch, handler):
+    async def no_detail(rows, platform):
+        return rows
+
+    # These checks isolate listing pagination/mapping. Detail requests have their
+    # own tests below, including filtering before request and failure handling.
+    monkeypatch.setattr("src.scraper._bronze.enrich_details", no_detail)
     monkeypatch.setenv("GLINTS_COOKIE", "session=test-only")
     monkeypatch.setenv("TECHINASIA_API_KEY", "test-search-key")
     monkeypatch.delenv("TECHINASIA_JOB_URL_TEMPLATE", raising=False)
@@ -92,12 +91,11 @@ def test_recorded_listing_matches_bronze_and_manifest_contract(platform, monkeyp
             for row in records:
                 assert set(row) == FIELDS
                 assert row["platform"] == platform
-                assert (
-                    row["job_id"]
-                    == hashlib.md5(normalize_url(row["job_url"]).encode()).hexdigest()
-                )
-                assert row["job_description"]
-                assert "<p>" not in row["job_description"]
+                assert row["job_id"] in {
+                    str(item.get("id") or item.get("objectID"))
+                    for item in jobs_in(fixture(platform), platform)
+                }
+                assert "<p>" not in (row["job_description"] or "")
             seen = {row["job_id"] for row in records}
             unchanged = seen.copy()
             assert asyncio.run(runner(url, seen_ids=seen, max_pages=1)) == []
@@ -165,6 +163,35 @@ def test_pagination_continues_after_filtered_page_and_stops_on_repeated_ids(
     assert len(requests) == 3
     if platform == "kalibrr":
         assert [r.url.params["offset"] for r in requests] == ["0", "20", "40"]
+
+
+@pytest.mark.parametrize("platform", FILES)
+def test_main_pipeline_uses_api_scraper(platform, monkeypatch):
+    body = fixture(platform)
+    if platform == "kalibrr":
+        jobs_in(body, platform)[0]["name"] = "Data Engineer"
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json=body)
+
+    install_mock(monkeypatch, respond)
+    with (
+        patch("src.utils.manifest.read_manifest", return_value=set()),
+        patch("src.utils.manifest.update_manifest", return_value=True) as persist,
+        patch("src.utils.upload_to_s3.upload_to_s3", return_value=True) as upload,
+    ):
+        count = asyncio.run(run_scraper_pipeline(platform, ["data engineer"]))
+
+    assert requests
+    assert count > 0
+    frame = upload.call_args.args[0]
+    assert len(frame) == count
+    assert set(frame["platform"]) == {platform}
+    assert set(frame["keyword"]) == {"data engineer"}
+    upload.assert_called_once()
+    persist.assert_called_once_with(platform, set(frame["job_id"]))
 
 
 def test_kalibrr_preserves_html_description_and_qualifications():

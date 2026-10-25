@@ -1,7 +1,11 @@
+import logging
+
 import pandas as pd
 import pandera.pandas as pa
 from pandera.pandas import DataFrameSchema, Column, Check
 import json
+
+logger = logging.getLogger(__name__)
 
 job_schema = DataFrameSchema(
     {
@@ -21,25 +25,29 @@ job_schema = DataFrameSchema(
 def validate_job_data(df: pd.DataFrame):
     try:
         df_validated = job_schema.validate(df)
-        print("✅ Data berhasil divalidasi!")
+        logger.info("Data berhasil divalidasi: %s baris", len(df_validated))
         return df_validated
     except pa.errors.SchemaError as e:
-        print(f"❌ Data kotor/tidak valid: {e}")
+        logger.error("Data tidak valid: %s", e)
         raise e
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     file_path = r"output/kalibrr_raw_20260216_081739.json"
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             results = json.load(f)
-        print("✅ Berhasil ngeload JSON")
+        logger.info("JSON berhasil dimuat dari %s", file_path)
 
         df = pd.DataFrame(results)
 
         job_schema.validate(df)
-        print("✅ Data berhasil divalidasi!")
+        logger.info("Data berhasil divalidasi: %s baris", len(df))
 
     except Exception as e:
-        print(f"❌ Gagal proses: {e}")
+        logger.exception("Gagal memproses data: %s", e)

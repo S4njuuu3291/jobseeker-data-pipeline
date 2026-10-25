@@ -2,10 +2,6 @@ import pytest
 import pandera.pandas as pa
 from src.utils.data_validator import validate_job_data
 from src.utils.data_validator import job_schema
-from src.utils.scraper_utils import (
-    DEVICE_PROFILES,
-    human_delay,
-)
 from src.utils.upload_to_s3 import upload_to_s3
 from unittest.mock import patch, MagicMock
 import pandas as pd
@@ -85,43 +81,6 @@ class TestDataValidator:
         validated_df = validate_job_data(df)
 
         assert len(validated_df) == 0
-
-
-# ===============================================================================
-#                              SCRAPER UTILS TESTS
-# ===============================================================================
-
-
-class TestScraperUtils:
-    @pytest.mark.asyncio
-    async def test_human_delay_within_range(self):
-        min_ms = 50
-        max_ms = 150
-        start_time = pd.Timestamp.now()
-        await human_delay(min_ms, max_ms)
-        end_time = pd.Timestamp.now()
-        elapsed_ms = (end_time - start_time).total_seconds() * 1000
-
-        assert (
-            min_ms <= elapsed_ms <= max_ms + 50
-        )  # Allow some buffer for execution time
-
-    def test_device_profiles(self):
-        for profile_name, profile in DEVICE_PROFILES.items():
-            assert "user_agent" in profile
-            assert "viewport" in profile
-            assert "device_scale_factor" in profile
-            assert "is_mobile" in profile
-            assert "has_touch" in profile
-
-    def test_device_profiles_viewport(self):
-        for profile_name, profile in DEVICE_PROFILES.items():
-            viewport = profile["viewport"]
-            assert viewport["width"] > 0
-            assert viewport["height"] > 0
-            assert isinstance(viewport["width"], int)
-            assert isinstance(viewport["height"], int)
-
 
 # ===============================================================================
 #                              UPLOAD TO S3 TESTS

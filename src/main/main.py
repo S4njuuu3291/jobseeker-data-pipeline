@@ -62,6 +62,15 @@ async def run_scraper_pipeline(platform: str, keywords: list[str]) -> int:
         return 0
 
     df = pd.DataFrame(records).drop_duplicates(subset=["job_id"])
+    # Nullable integers keep an all-null batch compatible with later numeric data.
+    from src.scraper._bronze import FIELDS, INTEGER_FIELDS
+
+    for column in INTEGER_FIELDS:
+        if column in df:
+            df[column] = pd.array(df[column], dtype="Int64")
+    for column in set(FIELDS) - INTEGER_FIELDS:
+        if column in df:
+            df[column] = df[column].astype("string")
     df_validated = validate_job_data(df)
     if not upload_to_s3(df_validated, platform=platform):
         logger.error("Bronze upload failed for %s; manifest unchanged.", platform)

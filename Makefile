@@ -1,4 +1,4 @@
-.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply docker-ecr-login-dev docker-ecr-push-dev tf-dev-plan tf-dev-apply reset-manifest
+.PHONY: sync-main update-main fmt lint mypy test ci help docker-build docker-up docker-down init-superset tf-prod-plan tf-prod-apply lambda-packages tf-dev-plan tf-dev-apply reset-manifest
 
 # Contoh command manual (dokumentasi saja, bukan target/shortcut Make).
 # Jalankan dari root project kecuali bagian SAM; aktifkan environment Python:
@@ -32,22 +32,10 @@
 # delete menghapus manifest dan meminta konfirmasi interaktif.
 # python -m src.utils.manifest glints delete
 #
-# SAM + Terraform dev: jalankan dari terraform/envs/dev.
-# Memerlukan SAM CLI, Docker, kredensial AWS, dan akses image ECR.
-# terraform.tfvars dibaca otomatis; TF_VAR_env tidak diperlukan.
-# cd terraform/envs/dev
-# Buat event.json di folder tersebut dengan isi: {"platform": "glints"}
-# sam local invoke --hook-name terraform module.base.aws_lambda_function.scraper -e event.json
-# Platform dipilih melalui event.json; kode berasal dari image rujukan Terraform.
-# Untuk kembali ke root project: cd ../../..
-#
-# Docker lokal: build kode lokal tanpa push ECR, jalankan dari root project.
-# docker build -t jobscraper-local .
-# AWS_PROFILE dapat diganti dengan profil lokal yang digunakan.
-# docker run --rm -p 9000:8080 -v "$HOME/.aws:/root/.aws:ro" -e AWS_PROFILE=default -e AWS_DEFAULT_REGION=ap-southeast-1 -e AWS_S3_BUCKET_NAME=jobscraper-bronze-data-8424560-dev jobscraper-local src.entrypoint.handlers.scraper_handler
-# Dari terminal lain, panggil handler (platform dapat diganti):
-# curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations -H 'Content-Type: application/json' -d '{"platform":"glints"}'
-# Handler ditentukan eksplisit karena default CMD Dockerfile masih handler lama.
+# Deployment: ZIP + layers; no Docker/Chromium/ECR is required for Lambda.
+# python scripts/build_lambda_packages.py
+# terraform -chdir=terraform/envs/dev plan -var='env=dev'
+# See docs/lambda-zip-deployment.md for runtime flow and migration.
 #
 # Git shortcuts
 sync-main:
@@ -77,7 +65,7 @@ mypy:
 
 test:
 	@echo "🧪 Running pytest..."
-	poetry run pytest --tb=short
+	poetry run pytest tests --tb=short
 	@echo "✅ Tests passed!"
 
 ci: fmt lint mypy test
@@ -114,6 +102,11 @@ reset-manifest:
 	poetry run python -c "import sys; sys.path.insert(0, '.'); from src.utils.manifest import read_manifest, update_manifest; print('before:', len(read_manifest('$(PLATFORM)'))); update_manifest('$(PLATFORM)', set()); print('after:', len(read_manifest('$(PLATFORM)')))"
 	@echo "Manifest $(PLATFORM) reset!"
 
+reset-manifest-all:
+	@echo "Resetting manifest for all platforms..."
+	poetry run python -c "import sys; sys.path.insert(0, '.'); from src.utils.manifest import read_manifest, update_manifest; platforms = ['glints', 'jobstreet', 'kalibrr', 'dealls', 'techinasia']; [update_manifest(p, set()) for p in platforms]; print('All manifests reset!')"
+	@echo "✅ All manifests reset!"
+
 tf-dev-init:
 	@echo "🔧 Initializing Terraform for dev environment..."
 	cd terraform/envs/dev && terraform init
@@ -133,3 +126,7 @@ tf-dev-apply:
 	@echo "🚀 Applying Terraform for dev environment..."
 	cd terraform/envs/dev && terraform apply -auto-approve
 	@echo "✅ Terraform apply complete!"
+
+# Build wheels, source ZIPs and dependency layers; validate native imports/size.
+lambda-packages:
+	poetry run python scripts/build_lambda_packages.py
