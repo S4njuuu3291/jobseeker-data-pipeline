@@ -2,17 +2,81 @@
 #           LAKE FORMATION SETTINGS
 # =========================================================
 
-# Lake Formation Data Lake Settings - Add Lambda role as Data Lake Admin
-# Also disable cross-account filtering to simplify permissions
-resource "aws_lakeformation_data_lake_settings" "slack_lambda_admin" {
-  depends_on = [aws_iam_role.slack_lambda_role]
+# Account/region settings must have one owner, rather than competing dev/prod
+# states. Forget the old address without resetting the live account settings.
+removed {
+  from = aws_lakeformation_data_lake_settings.slack_lambda_admin
+  lifecycle {
+    destroy = false
+  }
+}
 
+locals {
+  view_deployer_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/jobscraper-github-actions-role"
+}
+
+resource "aws_lakeformation_data_lake_settings" "pipeline_admins" {
+  count = var.env == "prod" ? 1 : 0
+
+  # The deployment role manages LF grants. Retain both existing runtime admin
+  # identities so deploying either environment cannot remove the other's admin.
   admins = [
-    aws_iam_role.slack_lambda_role.arn
+    local.view_deployer_arn,
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/jobscraper_slack_lambda_role",
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/jobscraper_slack_lambda_role-dev",
   ]
-
-  # Disable fine-grained access control which is causing column-level permission issues
   allow_external_data_filtering = false
+
+  depends_on = [aws_iam_role.github_actions_role, aws_iam_role.slack_lambda_role]
+}
+
+# IAM AdministratorAccess alone does not authorize existing LF-managed views.
+# Scope catalog access to this environment's database, including future views.
+resource "aws_lakeformation_permissions" "view_deployer_database" {
+  principal   = local.view_deployer_arn
+  permissions = ["CREATE_TABLE", "DESCRIBE"]
+
+  database {
+    name = aws_glue_catalog_database.jobscraper_db.name
+  }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline_admins]
+}
+
+resource "aws_lakeformation_permissions" "view_deployer_tables" {
+  principal                     = local.view_deployer_arn
+  permissions                   = ["ALTER", "DESCRIBE", "DROP", "SELECT"]
+  permissions_with_grant_option = ["SELECT"]
+
+  table {
+    database_name = aws_glue_catalog_database.jobscraper_db.name
+    wildcard      = true
+  }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline_admins]
+}
+
+resource "aws_lakeformation_permissions" "slack_database" {
+  principal   = aws_iam_role.slack_lambda_role.arn
+  permissions = ["DESCRIBE"]
+
+  database {
+    name = aws_glue_catalog_database.jobscraper_db.name
+  }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline_admins]
+}
+
+resource "aws_lakeformation_permissions" "slack_tables" {
+  principal   = aws_iam_role.slack_lambda_role.arn
+  permissions = ["DESCRIBE", "SELECT"]
+
+  table {
+    database_name = aws_glue_catalog_database.jobscraper_db.name
+    wildcard      = true
+  }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline_admins]
 }
 
 # =========================================================
